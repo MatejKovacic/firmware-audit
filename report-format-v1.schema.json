@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:firmware-audit:report-format:v1",
+  "title": "Firmware Audit report format v1",
+  "type": "object",
+  "required": ["format", "report", "system", "results", "evidence", "integrity"],
+  "properties": {
+    "format": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "firmware-audit-report"},
+        "version": {"const": 1}
+      },
+      "additionalProperties": true
+    },
+    "report": {
+      "type": "object",
+      "required": ["id", "created_at", "scope", "profile", "requested_areas", "scanner", "timing"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "created_at": {"type": "string", "minLength": 1},
+        "scope": {"enum": ["full", "partial"]},
+        "profile": {"type": "string"},
+        "requested_areas": {"type": "array", "items": {"type": "string"}, "minItems": 1, "uniqueItems": true},
+        "scanner": {
+          "type": "object",
+          "required": ["name", "version", "effective_uid"],
+          "properties": {
+            "name": {"type": "string"},
+            "version": {"type": "string"},
+            "effective_uid": {"type": "integer"}
+          },
+          "additionalProperties": true
+        },
+        "timing": {
+          "type": "object",
+          "required": ["started_at", "completed_at", "duration_ms", "areas", "area_segments"],
+          "properties": {
+            "started_at": {"type": "string"},
+            "completed_at": {"type": "string"},
+            "duration_ms": {"type": "integer", "minimum": 0},
+            "areas": {"type": "array"},
+            "area_segments": {"type": "array"}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "system": {
+      "type": "object",
+      "required": ["id", "id_source", "hostname", "os", "kernel", "hardware"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "id_source": {"type": "string"},
+        "hostname": {"type": "string"},
+        "os": {"type": "object"},
+        "kernel": {"type": "object"},
+        "hardware": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "results": {
+      "type": "object",
+      "required": ["overall", "areas", "findings", "security_notes"],
+      "properties": {
+        "overall": {"$ref": "#/$defs/overall"},
+        "areas": {"type": "array", "items": {"$ref": "#/$defs/area"}},
+        "findings": {"type": "array", "items": {"type": "object"}},
+        "security_notes": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["commands", "artifacts"],
+      "properties": {
+        "commands": {"type": "object"},
+        "artifacts": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["algorithm", "scope", "digest"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "scope": {"type": "string"},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "status": {"enum": ["good", "attention", "investigate", "unknown", "not_applicable"]},
+    "overall": {
+      "type": "object",
+      "required": ["status", "headline", "explanation"],
+      "properties": {
+        "status": {"$ref": "#/$defs/status"},
+        "headline": {"type": "string"},
+        "explanation": {"type": "string"},
+        "coverage": {"$ref": "#/$defs/coverage"}
+      },
+      "additionalProperties": true
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["status", "headline", "explanation"],
+      "properties": {
+        "status": {"enum": ["complete", "partial", "insufficient"]},
+        "headline": {"type": "string"},
+        "explanation": {"type": "string"},
+        "unknown_area_count": {"type": "integer", "minimum": 0},
+        "assessed_area_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "area": {
+      "type": "object",
+      "required": ["slug", "title", "short_title", "question", "status", "summary", "explanation", "findings", "security_notes", "evidence"],
+      "properties": {
+        "slug": {"type": "string"},
+        "title": {"type": ["string", "null"]},
+        "short_title": {"type": ["string", "null"]},
+        "question": {"type": ["string", "null"]},
+        "status": {"$ref": "#/$defs/status"},
+        "summary": {"type": ["string", "null"]},
+        "explanation": {"type": ["string", "null"]},
+        "findings": {"type": "array", "items": {"type": "object"}},
+        "security_notes": {"type": "array", "items": {"type": "object"}},
+        "evidence": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

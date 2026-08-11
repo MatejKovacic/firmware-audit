@@ -1,0 +1,3 @@
+d /run/firmware-audit 0750 root firmware-audit -
+d /var/lib/firmware-audit 0750 root firmware-audit -
+d /var/lib/firmware-audit/reports 2750 root firmware-audit -

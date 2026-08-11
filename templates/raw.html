@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Raw evidence{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><h1>Raw evidence</h1><p><code>{{ report.report.id }}</code></p></div>
+  <div class="actions"><a class="button" href="{{ url_for('index') }}">Snapshot</a><a class="button" href="{{ url_for('download_current') }}">Download JSON</a></div>
+</div>
+<div class="notice notice-warning">Raw evidence may contain identifiers, paths and device data.</div>
+<section aria-labelledby="commands-title">
+  <div class="section-title-row"><h2 id="commands-title">Commands</h2><span>{{ command_items|length }}</span></div>
+  <div class="table-wrap"><table class="raw-table">
+    <thead><tr><th>Command</th><th>Status</th><th>Execution</th><th>Output</th></tr></thead>
+    <tbody>{% for name, item in command_items %}<tr>
+      <td><code>{{ name }}</code><br><span class="muted">{{ item.description }}</span></td>
+      <td>{{ item.status|replace('_', ' ') }}<br><span class="muted">rc={{ item.returncode }}</span>{% if item.requested_by_areas %}<br><span class="muted">for {{ item.requested_by_areas|join(', ') }}</span>{% endif %}</td>
+      <td><code class="breakable">{{ item.argv|join(' ') }}</code><br><span class="muted">{{ item.duration_ms }} ms · UID {{ item.effective_uid }}</span></td>
+      <td><details><summary>Show output</summary><p><strong>stdout SHA-256</strong><br><code class="breakable">{{ item.stdout_sha256 }}</code></p><pre>{{ item.stdout or '(empty)' }}</pre><p><strong>stderr SHA-256</strong><br><code class="breakable">{{ item.stderr_sha256 }}</code></p><pre>{{ item.stderr or '(empty)' }}</pre></details></td>
+    </tr>{% else %}<tr><td colspan="4">No command evidence.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+<section aria-labelledby="artifacts-title">
+  <div class="section-title-row"><h2 id="artifacts-title">Artifacts</h2><span>{{ artifact_items|length }}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Artifact</th><th>Data</th></tr></thead>
+    <tbody>{% for name, data in artifact_items %}<tr><td><code>{{ name }}</code></td><td><details><summary>Show JSON</summary><pre>{{ data|tojson(indent=2) }}</pre></details></td></tr>{% else %}<tr><td colspan="2">No artifacts.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

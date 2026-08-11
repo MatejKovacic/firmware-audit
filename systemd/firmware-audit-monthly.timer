@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly Firmware Audit full scan
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=2h
+Unit=firmware-audit-monthly.service
+
+[Install]
+WantedBy=timers.target

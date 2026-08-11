@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Current snapshot{% endblock %}
+{% block content %}
+{% set current_scan = scan_status if scan_status is defined else {'state':'idle','current_area':'','message':'No scan is currently running','progress_percent':0,'log':[]} %}
+<div class="page-heading">
+  <div>
+    <h1>Current security snapshot</h1>
+    {% if report %}
+      {% set meta = report.report %}
+      {% set timing = meta.timing %}
+      <p><code>{{ meta.id }}</code> · Scan started {{ timing.started_at or meta.created_at }}{% if timing.duration_ms is defined %} · Duration {{ format_duration_ms(timing.duration_ms) }}{% endif %} · {{ meta.scope }} scan</p>
+    {% endif %}
+  </div>
+  {% if report %}
+  <div class="actions">
+    <a class="button" href="{{ url_for('raw_current') }}">Raw evidence</a>
+    <a class="button" href="{{ url_for('download_current') }}">Download JSON</a>
+    {% if upload_status is defined and upload_status.enabled %}
+      <form class="upload-form" action="{{ url_for('upload_current') }}" method="post" data-upload-form>
+        <input type="hidden" name="csrf_token" value="{{ upload_csrf }}">
+        <button type="submit"{% if not upload_status.available or not report.integrity_verification.valid %} disabled{% endif %}>Upload report</button>
+        <span class="upload-destination muted">{% if upload_status.available and upload_status.destination %}to {{ upload_status.destination }}{% elif upload_status.message %}{{ upload_status.message }}{% endif %}</span>
+      </form>
+      <span class="upload-result" data-upload-result role="status" aria-live="polite"></span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<details id="collection-status" class="collection-status state-{{ current_scan.state }}" data-status-url="{{ url_for('collection_status') }}">
+  <summary>
+    <span class="spinner" aria-hidden="true"></span>
+    <strong id="collection-status-label">
+      {% if current_scan.state == 'running' %}Scanning security areas…{% elif current_scan.state == 'completed' %}Last scan completed{% elif current_scan.state == 'failed' %}Last scan stopped{% else %}Scanner status{% endif %}
+    </strong>
+    <span id="collection-status-area" class="muted">{{ current_scan.current_area or current_scan.message }}</span>
+    <span id="collection-status-progress" class="progress-text">{% if current_scan.state == 'running' %}{{ current_scan.progress_percent }}%{% endif %}</span>
+  </summary>
+  <div class="collection-status-body">
+    <div class="progress-track"><span id="collection-status-bar" style="width: {{ current_scan.progress_percent or 0 }}%"></span></div>
+    <div id="collection-status-message" class="muted">{{ current_scan.message }}</div>
+    <ol id="collection-status-log" class="status-log">
+      {% for entry in current_scan.log %}<li><time>{{ entry.at }}</time><strong>{{ entry.area }}</strong><span>{{ entry.message }}</span></li>{% endfor %}
+    </ol>
+  </div>
+</details>
+
+{% if report %}
+  {% if report.report.scope == 'partial' %}
+    <div class="notice notice-warning"><strong>Partial scan.</strong> Only these areas were assessed: {% for slug in report.report.requested_areas %}<code>{{ slug }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.</div>
+  {% endif %}
+  {% if not report.integrity_verification.valid %}
+    <div class="notice notice-warning"><strong>Report consistency check failed.</strong> The JSON file changed after the scanner created its digest. Machine results below are shown as recorded but the report file itself should not be trusted.</div>
+  {% endif %}
+  {% include "_assessment.html" %}
+{% else %}
+  <div class="empty"><strong>No current snapshot.</strong> Run <code>sudo firmware-audit-scan --profile full</code>.</div>
+{% endif %}
+{% endblock %}

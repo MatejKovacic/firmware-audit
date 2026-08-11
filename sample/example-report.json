@@ -1,0 +1,2353 @@
+{
+  "evidence": {
+    "artifacts": {
+      "amd_secure_processor_state": {
+        "ccp_access_failure": false,
+        "psp_enabled": false,
+        "source": "current-boot kernel journal",
+        "state": "not-observed",
+        "tee_enabled": false
+      },
+      "boot_file_hashes": [],
+      "conventional_uefi_collection": {
+        "applicable": true,
+        "checks": [
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "SPI controller and chipset write protections",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "fwupd_security_text",
+              "fwupd_bios_settings_json",
+              "artifact:firmware_attributes"
+            ],
+            "evidence_states": {
+              "artifact:firmware_attributes": "collected_empty",
+              "fwupd_bios_settings_json": "not_collected",
+              "fwupd_security_json": "collected",
+              "fwupd_security_text": "collected"
+            },
+            "id": "firmware-write-resistance",
+            "limitation": "Linux-only collection does not test an external hardware write-protect pin or attempt a flash write.",
+            "purpose": "Collect evidence about whether privileged software can rewrite critical firmware regions.",
+            "sources": [
+              "fwupd HSI",
+              "Linux firmware attributes"
+            ],
+            "title": "Firmware write resistance"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Hardware-protected flash region",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "fwupd_devices_json"
+            ],
+            "evidence_states": {
+              "fwupd_devices_json": "not_collected",
+              "fwupd_security_json": "collected"
+            },
+            "id": "hardware-flash-protection",
+            "limitation": "A hardware WP pin and external-programmer resistance cannot be proven from a normal Linux scan.",
+            "purpose": "Preserve any Linux-visible evidence of protected flash regions and firmware update policy.",
+            "sources": [
+              "fwupd HSI",
+              "fwupd device metadata"
+            ],
+            "title": "Hardware flash protection"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Intel Boot Guard or equivalent verified boot",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "fwupd_security_text",
+              "lscpu_json",
+              "dmidecode_bios"
+            ],
+            "evidence_states": {
+              "dmidecode_bios": "collected",
+              "fwupd_security_json": "collected",
+              "fwupd_security_text": "collected",
+              "lscpu_json": "not_collected"
+            },
+            "id": "hardware-verified-firmware-boot",
+            "limitation": "The collector records fwupd/kernel-visible state; it does not independently inspect fused keys.",
+            "purpose": "Collect CPU-vendor and fwupd evidence for Intel Boot Guard or AMD Platform Secure Boot.",
+            "sources": [
+              "fwupd HSI",
+              "SMBIOS",
+              "lscpu"
+            ],
+            "title": "Hardware-verified firmware boot"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Measured boot",
+            "evidence_ids": [
+              "tpm_properties",
+              "tpm_algorithms",
+              "tpm_pcrs",
+              "tpm_eventlog",
+              "artifact:tpm_eventlog",
+              "fwupd_security_json"
+            ],
+            "evidence_states": {
+              "artifact:tpm_eventlog": "collected_empty",
+              "fwupd_security_json": "collected",
+              "tpm_algorithms": "not_collected",
+              "tpm_eventlog": "not_collected",
+              "tpm_pcrs": "not_collected",
+              "tpm_properties": "collected"
+            },
+            "id": "measured-boot",
+            "limitation": "PCR values require event-log replay or external attestation before they become integrity conclusions.",
+            "purpose": "Collect TPM capabilities, PCR banks, and the binary and parsed measured-boot event log.",
+            "sources": [
+              "Linux TPM resource manager",
+              "tpm2-tools",
+              "fwupd HSI"
+            ],
+            "title": "TPM measured boot"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Secure Boot",
+            "evidence_ids": [
+              "secure_boot_state",
+              "mok_pk",
+              "mok_kek",
+              "mok_db",
+              "mok_dbx",
+              "mok_enrolled",
+              "efibootmgr",
+              "bootctl",
+              "kernel_lockdown",
+              "efi_platform_size",
+              "artifact:efi_variables"
+            ],
+            "evidence_states": {
+              "artifact:efi_variables": "collected_empty",
+              "bootctl": "not_collected",
+              "efi_platform_size": "not_collected",
+              "efibootmgr": "not_collected",
+              "kernel_lockdown": "not_collected",
+              "mok_db": "not_collected",
+              "mok_dbx": "not_collected",
+              "mok_enrolled": "not_collected",
+              "mok_kek": "not_collected",
+              "mok_pk": "not_collected",
+              "secure_boot_state": "collected"
+            },
+            "id": "uefi-secure-boot",
+            "limitation": "Collection does not execute an unsigned boot component to test rejection.",
+            "purpose": "Collect Secure Boot state, UEFI trust databases, boot entries, EFI variables, and kernel lockdown.",
+            "sources": [
+              "mokutil",
+              "efivarfs",
+              "efibootmgr",
+              "systemd bootctl",
+              "Linux lockdown"
+            ],
+            "title": "UEFI Secure Boot"
+          },
+          {
+            "collection_state": "collected",
+            "dasharo_feature": "SMM BIOS protection",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "fwupd_security_text"
+            ],
+            "evidence_states": {
+              "fwupd_security_json": "collected",
+              "fwupd_security_text": "collected"
+            },
+            "id": "smm-firmware-isolation",
+            "limitation": "No CHIPSEC driver is loaded; low-level SMRAM and SMM code checks are outside this simple profile.",
+            "purpose": "Collect fwupd HSI attributes related to SMM BIOS write protection and platform isolation.",
+            "sources": [
+              "fwupd HSI"
+            ],
+            "title": "SMM firmware isolation"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Pre-boot DMA protection",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "iommu_kernel_log",
+              "artifact:iommu_groups",
+              "artifact:firmware_runtime_hashes"
+            ],
+            "evidence_states": {
+              "artifact:firmware_runtime_hashes": "collected_empty",
+              "artifact:iommu_groups": "collected_empty",
+              "fwupd_security_json": "collected",
+              "iommu_kernel_log": "not_collected"
+            },
+            "id": "early-dma-protection",
+            "limitation": "Linux IOMMU activation alone does not prove protection was active before the OS started.",
+            "purpose": "Collect fwupd pre-boot DMA attributes, ACPI tables, Linux IOMMU groups, and relevant kernel messages.",
+            "sources": [
+              "fwupd HSI",
+              "Linux IOMMU sysfs",
+              "kernel journal",
+              "ACPI DMAR/IVRS"
+            ],
+            "title": "Early DMA protection"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Signed firmware updates",
+            "evidence_ids": [
+              "fwupd_devices_json",
+              "fwupd_updates_json",
+              "fwupd_remotes_json",
+              "fwupd_topology_json",
+              "artifact:esrt_entries"
+            ],
+            "evidence_states": {
+              "artifact:esrt_entries": "collected_empty",
+              "fwupd_devices_json": "not_collected",
+              "fwupd_remotes_json": "not_collected",
+              "fwupd_topology_json": "not_collected",
+              "fwupd_updates_json": "collected"
+            },
+            "id": "authenticated-firmware-updates",
+            "limitation": "The scan does not install a deliberately invalid capsule to prove rejection.",
+            "purpose": "Collect update-capable devices, release metadata, ESRT entries, and configured remotes.",
+            "sources": [
+              "fwupd",
+              "Linux UEFI ESRT sysfs"
+            ],
+            "title": "Authenticated firmware updates"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Firmware downgrade restrictions",
+            "evidence_ids": [
+              "fwupd_security_json",
+              "fwupd_devices_json",
+              "fwupd_bios_settings_json"
+            ],
+            "evidence_states": {
+              "fwupd_bios_settings_json": "not_collected",
+              "fwupd_devices_json": "not_collected",
+              "fwupd_security_json": "collected"
+            },
+            "id": "rollback-protection",
+            "limitation": "No downgrade is attempted; absence of metadata is not proof that downgrade protection is absent.",
+            "purpose": "Preserve fwupd HSI, device flags, lowest-version metadata, and firmware-exposed BIOS settings.",
+            "sources": [
+              "fwupd HSI",
+              "fwupd device metadata",
+              "fwupd BIOS settings"
+            ],
+            "title": "Firmware rollback protection"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Controlled boot menu, USB boot, and network boot",
+            "evidence_ids": [
+              "efibootmgr",
+              "fwupd_bios_settings_json",
+              "artifact:firmware_attributes"
+            ],
+            "evidence_states": {
+              "artifact:firmware_attributes": "collected_empty",
+              "efibootmgr": "not_collected",
+              "fwupd_bios_settings_json": "not_collected"
+            },
+            "id": "controlled-boot-policy",
+            "limitation": "Vendors expose different settings; a missing setting is recorded as unavailable rather than disabled.",
+            "purpose": "Collect boot order, boot entries, and firmware settings exposed through fwupd or Linux sysfs.",
+            "sources": [
+              "efibootmgr",
+              "fwupd BIOS settings",
+              "Linux firmware-attributes sysfs"
+            ],
+            "title": "Controlled boot policy"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Signed recovery image or dual-bank recovery",
+            "evidence_ids": [
+              "fwupd_devices_json",
+              "fwupd_bios_settings_json",
+              "artifact:esrt_entries"
+            ],
+            "evidence_states": {
+              "artifact:esrt_entries": "collected_empty",
+              "fwupd_bios_settings_json": "not_collected",
+              "fwupd_devices_json": "not_collected"
+            },
+            "id": "firmware-recovery",
+            "limitation": "A normal running-OS scan cannot prove that recovery survives corruption or power loss.",
+            "purpose": "Collect recovery-related device flags, ESRT metadata, and firmware settings.",
+            "sources": [
+              "fwupd device metadata",
+              "Linux UEFI ESRT sysfs",
+              "fwupd BIOS settings"
+            ],
+            "title": "Firmware recovery capability"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Transparent releases, hashes, and provenance",
+            "evidence_ids": [
+              "fwupd_version",
+              "fwupd_remotes_json",
+              "fwupd_hwids_json",
+              "fwupd_updates_json"
+            ],
+            "evidence_states": {
+              "fwupd_hwids_json": "not_collected",
+              "fwupd_remotes_json": "not_collected",
+              "fwupd_updates_json": "collected",
+              "fwupd_version": "not_collected"
+            },
+            "id": "release-metadata-provenance",
+            "limitation": "No metadata refresh is performed, so cached release information may be stale.",
+            "purpose": "Record fwupd versions, configured metadata remotes, hardware IDs, and cached releases.",
+            "sources": [
+              "fwupd JSON interfaces"
+            ],
+            "title": "Release metadata and provenance"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "TPM ownership and presence",
+            "evidence_ids": [
+              "artifact:tpm_devices",
+              "tpm_properties",
+              "tpm_algorithms",
+              "tpm_pcrs",
+              "fwupd_devices_json"
+            ],
+            "evidence_states": {
+              "artifact:tpm_devices": "collected",
+              "fwupd_devices_json": "not_collected",
+              "tpm_algorithms": "not_collected",
+              "tpm_pcrs": "not_collected",
+              "tpm_properties": "collected"
+            },
+            "id": "tpm-presence-and-state",
+            "limitation": "The collector does not clear, provision, or take ownership of the TPM.",
+            "purpose": "Collect TPM device nodes, fixed properties, algorithms, and PCR availability.",
+            "sources": [
+              "Linux TPM devices",
+              "tpm2-tools",
+              "fwupd"
+            ],
+            "title": "TPM presence and state"
+          },
+          {
+            "collection_state": "partial",
+            "dasharo_feature": "Firmware security beyond the main BIOS",
+            "evidence_ids": [
+              "fwupd_devices_json",
+              "fwupd_topology_json",
+              "lspci",
+              "lspci_verbose",
+              "lsusb",
+              "lsusb_tree"
+            ],
+            "evidence_states": {
+              "fwupd_devices_json": "not_collected",
+              "fwupd_topology_json": "not_collected",
+              "lspci": "collected",
+              "lspci_verbose": "not_collected",
+              "lsusb": "not_collected",
+              "lsusb_tree": "not_collected"
+            },
+            "id": "peripheral-firmware",
+            "limitation": "Devices absent from fwupd may still contain firmware; absence from the list is not proof of absence.",
+            "purpose": "Inventory firmware-visible devices and correlate them with PCI and USB topology.",
+            "sources": [
+              "fwupd device topology",
+              "PCI sysfs/tools",
+              "USB sysfs/tools"
+            ],
+            "title": "Peripheral firmware coverage"
+          }
+        ],
+        "interpretation": "Evidence was collected for later interpretation. No check is marked pass or fail by this profile.",
+        "mode": "collection-only",
+        "network_access_performed": false,
+        "platform_profile": "uefi",
+        "profile_id": "conventional-uefi-dasharo-like-v1",
+        "target_os": "Debian GNU/Linux 13 (trixie)"
+      },
+      "cpu_vulnerabilities": [],
+      "efi_variables": [],
+      "esrt_entries": [],
+      "firmware_attributes": [],
+      "firmware_runtime_hashes": [],
+      "host_executable_inventory": [],
+      "host_persistence_files": [],
+      "initramfs_hashes": [],
+      "iommu_groups": [],
+      "kernel_taint": {
+        "decoded": [],
+        "value": 0
+      },
+      "loaded_module_metadata": [],
+      "memory_protection": {
+        "amd_cpuid_8000001f": {
+          "available": false
+        },
+        "capabilities": {},
+        "confidential_vm": {
+          "amd_sev": {
+            "dev_sev_present": false,
+            "host_enabled": false,
+            "kvm_parameters": {},
+            "sev_enabled_parameter": false,
+            "sev_es_enabled_parameter": false,
+            "sev_es_supported": false,
+            "sev_snp_enabled_parameter": false,
+            "sev_snp_supported": false,
+            "sev_status_active_bit0": null,
+            "sev_status_msr": null,
+            "state": "not-observed",
+            "supported": false
+          },
+          "dev_sev_present": false,
+          "intel_tdx": {
+            "supported": false
+          },
+          "kvm_amd_parameters": {}
+        },
+        "cpu_flags_observed": [],
+        "system_memory": {
+          "active": false,
+          "active_technologies": [],
+          "amd_sme": {
+            "linux_managed_active": false,
+            "memory_encryption_enable_bit23": null,
+            "state": "not-observed",
+            "supported": false,
+            "syscfg_msr": null
+          },
+          "amd_sme_kernel_active": false,
+          "amd_tsme": {
+            "active": false,
+            "confidence": "unknown",
+            "firmware_settings": [],
+            "state": "not-observed",
+            "sysfs": []
+          },
+          "intel_tme": {
+            "active": false,
+            "multi_key_supported": false,
+            "supported": false
+          },
+          "mem_encrypt_requested": false
+        }
+      },
+      "out_of_band_management": {
+        "bmc": {
+          "detected": false,
+          "interfaces": []
+        },
+        "detected": false,
+        "dmtf_dash": {
+          "detected": false,
+          "evidence": [],
+          "state": "unknown"
+        },
+        "firmware_persistence": [],
+        "intel_amt": {
+          "detected": false,
+          "mchi_present": false,
+          "records": []
+        },
+        "nic_oob": {
+          "detected": false,
+          "functions": [],
+          "kernel_no_system_interface": false,
+          "state": "not-observed"
+        }
+      },
+      "package_verify_analysis": {
+        "available": true,
+        "backend": "dpkg",
+        "counts": {
+          "configuration": 0,
+          "ignored": 0,
+          "other_drift": 0,
+          "security_relevant": 0,
+          "unparsed": 0
+        },
+        "interpretation": "drift-detection-only",
+        "records": [],
+        "source": "dpkg --verify plus local file metadata",
+        "truncated": false
+      },
+      "platform_profile": {
+        "confidence": "high",
+        "evidence": [
+          "/sys/firmware/efi present"
+        ],
+        "kind": "uefi"
+      },
+      "platform_security_processors": {
+        "amd_psp": {
+          "ccp_access_warning": false,
+          "devices": [],
+          "journal_psp_enabled": false,
+          "journal_tee_enabled": false,
+          "observable": false
+        },
+        "amd_tee": {
+          "detected": false
+        },
+        "detected": false,
+        "embedded_controllers": [],
+        "explicit_other": [],
+        "generic_security_management_hardware": [],
+        "gpu_security_processors": [],
+        "intel_mei": {
+          "devices": [],
+          "observable": false
+        }
+      },
+      "swap_topology": {
+        "all_encrypted": false,
+        "any_unencrypted": false,
+        "fwupd_used": false,
+        "known": false,
+        "method": "active swap inventory + block-device and mounted-filesystem topology",
+        "state": "unknown",
+        "swap_devices": []
+      },
+      "tpm_devices": [
+        "/dev/tpmrm0"
+      ],
+      "tpm_eventlog": {},
+      "uefi_mode": true
+    },
+    "commands": {
+      "dmidecode_bios": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "Vendor: Example\nVersion: 1.2.3",
+        "stdout_sha256": ""
+      },
+      "dpkg_package_inventory": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "base-files\t13.0\tii ",
+        "stdout_sha256": ""
+      },
+      "dpkg_verify": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected_empty",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "",
+        "stdout_sha256": ""
+      },
+      "fwupd_security_json": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "{\"SecurityAttributes\": []}",
+        "stdout_sha256": ""
+      },
+      "fwupd_security_text": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "Host Security ID: HSI:1",
+        "stdout_sha256": ""
+      },
+      "fwupd_updates_json": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "{\"Devices\": []}",
+        "stdout_sha256": ""
+      },
+      "kernel_journal": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "secureboot: Secure boot enabled",
+        "stdout_sha256": ""
+      },
+      "kernel_taint": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "0",
+        "stdout_sha256": ""
+      },
+      "lsblk_json": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "{\"blockdevices\": []}",
+        "stdout_sha256": ""
+      },
+      "lspci": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "00:00.0 Host bridge",
+        "stdout_sha256": ""
+      },
+      "os_release": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"",
+        "stdout_sha256": ""
+      },
+      "secure_boot_state": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "SecureBoot enabled",
+        "stdout_sha256": ""
+      },
+      "suid_sgid_files": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "4755\troot\troot\t/usr/bin/sudo",
+        "stdout_sha256": ""
+      },
+      "systemd_detect_virt": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "none",
+        "stdout_sha256": ""
+      },
+      "tpm_properties": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "TPM2_PT_MANUFACTURER",
+        "stdout_sha256": ""
+      },
+      "uname": {
+        "argv": [],
+        "description": "",
+        "duration_ms": 0,
+        "effective_uid": 0,
+        "environment": {},
+        "finished_at": "",
+        "returncode": 0,
+        "started_at": "",
+        "status": "collected",
+        "stderr": "",
+        "stderr_sha256": "",
+        "stdout": "Linux example 6.12.0-amd64",
+        "stdout_sha256": ""
+      }
+    }
+  },
+  "format": {
+    "name": "firmware-audit-report",
+    "version": 1
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "digest": "48af4c1416b26c5771ddb79946380913865b9441bdd23eea41c463a15fd4dd68",
+    "scope": "canonical JSON excluding this integrity object"
+  },
+  "report": {
+    "created_at": "2026-08-08T12:00:00+00:00",
+    "id": "20260808T120000.000000Z-example-host",
+    "profile": "full",
+    "requested_areas": [
+      "identity",
+      "firmware-baseline",
+      "firmware-protection",
+      "platform-security-processor",
+      "out-of-band-management",
+      "secure-boot",
+      "tpm-measured-boot",
+      "kernel-runtime",
+      "host-integrity",
+      "memory-protection",
+      "storage-memory",
+      "device-firmware",
+      "updates"
+    ],
+    "scanner": {
+      "effective_uid": 0,
+      "name": "firmware-audit-scanner",
+      "version": "0.12.0"
+    },
+    "scope": "full",
+    "timing": {
+      "area_segments": [],
+      "areas": [],
+      "completed_at": "2026-08-08T12:00:12+00:00",
+      "duration_ms": 12000,
+      "started_at": "2026-08-08T12:00:00+00:00"
+    }
+  },
+  "results": {
+    "areas": [
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 6 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "locale_effective",
+            "id": "locale_effective",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "locale_host_config",
+            "id": "locale_host_config",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "os_release",
+            "id": "os_release",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "uname",
+            "id": "uname",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "hostnamectl",
+            "id": "hostnamectl",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "systemd_detect_virt",
+            "id": "systemd_detect_virt",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmidecode_full",
+            "id": "dmidecode_full",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "dmidecode_bios",
+            "id": "dmidecode_bios",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmidecode_system",
+            "id": "dmidecode_system",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmidecode_baseboard",
+            "id": "dmidecode_baseboard",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "lspci",
+            "id": "lspci",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lspci_verbose",
+            "id": "lspci_verbose",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lsusb",
+            "id": "lsusb",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lsusb_tree",
+            "id": "lsusb_tree",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lscpu_json",
+            "id": "lscpu_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_hwids_json",
+            "id": "fwupd_hwids_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "firmware runtime hashes",
+            "id": "firmware_runtime_hashes",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "platform profile",
+            "id": "platform_profile",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          }
+        ],
+        "explanation": "Identifies the computer, its BIOS/UEFI version, processor, TPM, and attached hardware.",
+        "findings": [],
+        "question": "What machine is this, and what firmware does it report?",
+        "security_notes": [],
+        "short_title": "Identity",
+        "slug": "identity",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 6/16 applicable configured sources; 2 not applicable. Evidence states: {'not_collected': 12, 'collected': 6}. Finding types: {'informational': 0}.",
+        "title": "Machine and firmware identity"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 1 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "dmidecode_bios",
+            "id": "dmidecode_bios",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_pk",
+            "id": "mok_pk",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_kek",
+            "id": "mok_kek",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_db",
+            "id": "mok_db",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_dbx",
+            "id": "mok_dbx",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_enrolled",
+            "id": "mok_enrolled",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "boot file hashes",
+            "id": "boot_file_hashes",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "efi variables",
+            "id": "efi_variables",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm eventlog",
+            "id": "tpm_eventlog",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "firmware runtime hashes",
+            "id": "firmware_runtime_hashes",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Records current boot files, EFI variables, TPM event-log data, and OS-visible firmware tables.",
+        "findings": [],
+        "question": "What firmware-adjacent evidence is visible now?",
+        "security_notes": [],
+        "short_title": "Firmware evidence",
+        "slug": "firmware-baseline",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 1/10 applicable configured sources; 0 not applicable. Evidence states: {'collected': 1, 'not_collected': 9}. Finding types: {'informational': 0}.",
+        "title": "Current firmware and boot evidence"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_version",
+            "id": "fwupd_version",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_json",
+            "id": "fwupd_security_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_text",
+            "id": "fwupd_security_text",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_bios_settings_json",
+            "id": "fwupd_bios_settings_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "firmware attributes",
+            "id": "firmware_attributes",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "conventional uefi collection",
+            "id": "conventional_uefi_collection",
+            "kind": "artifact",
+            "optional": true,
+            "status": "collected"
+          }
+        ],
+        "explanation": "Checks protections intended to stop privileged software from modifying or downgrading firmware.",
+        "findings": [],
+        "question": "How difficult is it to rewrite the firmware?",
+        "security_notes": [],
+        "short_title": "Write protections",
+        "slug": "firmware-protection",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 3/4 applicable configured sources; 3 not applicable. Evidence states: {'not_collected': 3, 'collected': 4}. Finding types: {'informational': 0}.",
+        "title": "Firmware modification protections"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 4 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_json",
+            "id": "fwupd_security_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_devices_json",
+            "id": "fwupd_devices_json",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "lspci",
+            "id": "lspci",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lspci_verbose",
+            "id": "lspci_verbose",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "platform security processors",
+            "id": "platform_security_processors",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          }
+        ],
+        "explanation": "Detects platform security processors such as Intel ME/CSME/SPS and AMD Secure Processor, plus locally exposed trusted-execution, GPU-security, embedded-controller, and equivalent technologies.",
+        "findings": [],
+        "question": "What privileged platform security processor is present, and is its observable security state healthy?",
+        "security_notes": [],
+        "short_title": "Security processor",
+        "slug": "platform-security-processor",
+        "status": "good",
+        "summary": "No platform security processor was directly observable from the available local interfaces.",
+        "technical_result": "Evidence availability: 4/6 applicable configured sources; 0 not applicable. Evidence states: {'collected': 4, 'not_collected': 2}. Finding types: {'informational': 0}.",
+        "title": "Platform security processor"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmidecode_ipmi",
+            "id": "dmidecode_ipmi",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmidecode_mchi",
+            "id": "dmidecode_mchi",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "lspci",
+            "id": "lspci",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "ipmitool_mc_info",
+            "id": "ipmitool_mc_info",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "out of band management",
+            "id": "out_of_band_management",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "firmware attributes",
+            "id": "firmware_attributes",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Detects BMC/IPMI, Intel AMT, NIC-integrated management functions, DMTF DASH, and firmware endpoint-persistence controls without probing networks.",
+        "findings": [],
+        "question": "Does the machine expose an independent management subsystem?",
+        "security_notes": [],
+        "short_title": "OOB management",
+        "slug": "out-of-band-management",
+        "status": "good",
+        "summary": "No out-of-band management controller was detected from local host interfaces.",
+        "technical_result": "Evidence availability: 3/5 applicable configured sources; 2 not applicable. Evidence states: {'not_collected': 4, 'collected': 3}. Finding types: {'informational': 0}.",
+        "title": "Out-of-band management"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "secure_boot_state",
+            "id": "secure_boot_state",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_pk",
+            "id": "mok_pk",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_kek",
+            "id": "mok_kek",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_db",
+            "id": "mok_db",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_dbx",
+            "id": "mok_dbx",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mok_enrolled",
+            "id": "mok_enrolled",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "efibootmgr",
+            "id": "efibootmgr",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "bootctl",
+            "id": "bootctl",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "kernel_lockdown",
+            "id": "kernel_lockdown",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "efi_platform_size",
+            "id": "efi_platform_size",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "efi variables",
+            "id": "efi_variables",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "boot file hashes",
+            "id": "boot_file_hashes",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "platform profile",
+            "id": "platform_profile",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "esrt entries",
+            "id": "esrt_entries",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Checks Secure Boot, trusted and revoked certificates, MOK keys, boot entries, and kernel lockdown.",
+        "findings": [],
+        "question": "Are startup components authorized by the configured trust chain?",
+        "security_notes": [],
+        "short_title": "Secure Boot",
+        "slug": "secure-boot",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 3/13 applicable configured sources; 2 not applicable. Evidence states: {'collected': 3, 'not_collected': 12}. Finding types: {'informational': 0}.",
+        "title": "Secure Boot and boot-chain trust"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "tpm_properties",
+            "id": "tpm_properties",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm_algorithms",
+            "id": "tpm_algorithms",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm_pcrs",
+            "id": "tpm_pcrs",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm_eventlog",
+            "id": "tpm_eventlog",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_text",
+            "id": "fwupd_security_text",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "tpm devices",
+            "id": "tpm_devices",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm eventlog",
+            "id": "tpm_eventlog",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "tpm eventlog replay",
+            "id": "tpm_eventlog_replay",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Records TPM capabilities, PCR values, and the measured-boot event log when available.",
+        "findings": [],
+        "question": "What did the platform measure during startup?",
+        "security_notes": [],
+        "short_title": "TPM / measured boot",
+        "slug": "tpm-measured-boot",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 3/7 applicable configured sources; 1 not applicable. Evidence states: {'collected': 3, 'not_collected': 5}. Finding types: {'informational': 0}.",
+        "title": "TPM and measured boot"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "proc_cmdline",
+            "id": "proc_cmdline",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "kernel_lockdown",
+            "id": "kernel_lockdown",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_taint",
+            "id": "kernel_taint",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lsmod",
+            "id": "lsmod",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "warning_journal",
+            "id": "warning_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "apparmor",
+            "id": "apparmor",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "selinux",
+            "id": "selinux",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "security_lsm",
+            "id": "security_lsm",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "modules_disabled",
+            "id": "modules_disabled",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "kexec_load_disabled",
+            "id": "kexec_load_disabled",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "module_sig_enforce",
+            "id": "module_sig_enforce",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel taint",
+            "id": "kernel_taint",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "loaded module metadata",
+            "id": "loaded_module_metadata",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "cpu vulnerabilities",
+            "id": "cpu_vulnerabilities",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "integrity frameworks",
+            "id": "integrity_frameworks",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "kernel enforcement state",
+            "id": "kernel_enforcement_state",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Decodes kernel taint, module signatures, security modes, and important kernel warnings.",
+        "findings": [],
+        "question": "Did the running system load unusual code or enter an abnormal state?",
+        "security_notes": [],
+        "short_title": "Kernel runtime",
+        "slug": "kernel-runtime",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 3/11 applicable configured sources; 6 not applicable. Evidence states: {'not_collected': 14, 'collected': 3}. Finding types: {'informational': 0}.",
+        "title": "Kernel and runtime integrity"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 4 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "dpkg_verify",
+            "id": "dpkg_verify",
+            "kind": "command",
+            "optional": false,
+            "status": "collected_empty"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "dpkg_package_inventory",
+            "id": "dpkg_package_inventory",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dpkg_diversions",
+            "id": "dpkg_diversions",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dpkg_statoverrides",
+            "id": "dpkg_statoverrides",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "systemd_service_files",
+            "id": "systemd_service_files",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "systemd_timer_files",
+            "id": "systemd_timer_files",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "systemd_running_services",
+            "id": "systemd_running_services",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "systemd_timers",
+            "id": "systemd_timers",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "suid_sgid_files",
+            "id": "suid_sgid_files",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "aide_check",
+            "id": "aide_check",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "host persistence files",
+            "id": "host_persistence_files",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "host executable inventory",
+            "id": "host_executable_inventory",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "initramfs hashes",
+            "id": "initramfs_hashes",
+            "kind": "artifact",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "package verify analysis",
+            "id": "package_verify_analysis",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          }
+        ],
+        "explanation": "Checks installed package files, startup mechanisms, privileged files, initramfs images, and service configuration.",
+        "findings": [],
+        "question": "Are installed files or persistence mechanisms suspicious?",
+        "security_notes": [],
+        "short_title": "Installed files",
+        "slug": "host-integrity",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 4/13 applicable configured sources; 1 not applicable. Evidence states: {'collected_empty': 1, 'collected': 3, 'not_collected': 10}. Finding types: {'informational': 0}.",
+        "title": "Installed files and persistence"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 3 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_json",
+            "id": "fwupd_security_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "kernel_journal",
+            "id": "kernel_journal",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "proc_cmdline",
+            "id": "proc_cmdline",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lscpu_json",
+            "id": "lscpu_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "cpuid_amd_memory_encryption",
+            "id": "cpuid_amd_memory_encryption",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "msr_amd_syscfg",
+            "id": "msr_amd_syscfg",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "msr_amd_sev_status",
+            "id": "msr_amd_sev_status",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "memory protection",
+            "id": "memory_protection",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          }
+        ],
+        "explanation": "Distinguishes whole-system memory encryption from confidential-VM technologies and records locally observable activation state.",
+        "findings": [],
+        "question": "What hardware memory-encryption or confidential-memory protections are supported and active?",
+        "security_notes": [],
+        "short_title": "Memory protection",
+        "slug": "memory-protection",
+        "status": "good",
+        "summary": "No hardware memory-encryption capability was identified from the available local evidence.",
+        "technical_result": "Evidence availability: 3/4 applicable configured sources; 4 not applicable. Evidence states: {'collected': 3, 'not_collected': 5}. Finding types: {'informational': 0}.",
+        "title": "Hardware memory protection"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 1 security note(s) were generated from 4 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": true,
+            "description": "lsblk_json",
+            "id": "lsblk_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "swapon_json",
+            "id": "swapon_json",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "swapon_text",
+            "id": "swapon_text",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "proc_swaps",
+            "id": "proc_swaps",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "dmsetup_tree",
+            "id": "dmsetup_tree",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "mounts",
+            "id": "mounts",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "power_mem_sleep",
+            "id": "power_mem_sleep",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "power_state",
+            "id": "power_state",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_json",
+            "id": "fwupd_security_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_security_text",
+            "id": "fwupd_security_text",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "iommu_kernel_log",
+            "id": "iommu_kernel_log",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "swap topology",
+            "id": "swap_topology",
+            "kind": "artifact",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "iommu groups",
+            "id": "iommu_groups",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "thunderbolt security",
+            "id": "thunderbolt_security",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Checks encryption topology, active swap, sleep-state exposure, IOMMU, and pre-boot DMA protection.",
+        "findings": [],
+        "question": "Can secrets be exposed through storage, swap, sleep, or DMA?",
+        "security_notes": [
+          {
+            "category": "visibility",
+            "compromise_indicator": false,
+            "detailed": "",
+            "evidence": [
+              "Active swap topology could not be reconstructed"
+            ],
+            "evidence_ids": [
+              "proc_swaps",
+              "swapon_text",
+              "lsblk_json",
+              "mounts",
+              "artifact:swap_topology"
+            ],
+            "evidence_strength": "medium",
+            "finding_id": "swap-encryption-unknown",
+            "finding_type": "unknown",
+            "recommendation": "Review the active swap and storage topology in the raw evidence.",
+            "section": "storage-memory",
+            "severity": "low",
+            "simple": "The active swap inventory could not be mapped reliably to its backing storage.",
+            "summary": "The active swap inventory could not be mapped reliably to its backing storage.",
+            "technical": "Interpretation is based on the following collected evidence: Active swap topology could not be reconstructed.",
+            "title": "Swap protection could not be determined"
+          }
+        ],
+        "short_title": "Data exposure",
+        "slug": "storage-memory",
+        "status": "unknown",
+        "summary": "The application could not collect enough applicable evidence for this section.",
+        "technical_result": "Evidence availability: 4/11 applicable configured sources; 3 not applicable. Evidence states: {'collected': 4, 'not_collected': 10}. Finding types: {'unknown': 1}.",
+        "title": "Disk, memory, and physical-access protection"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 1 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_devices_json",
+            "id": "fwupd_devices_json",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "lspci",
+            "id": "lspci",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lspci_verbose",
+            "id": "lspci_verbose",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lsusb",
+            "id": "lsusb",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "lsusb_tree",
+            "id": "lsusb_tree",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_topology_json",
+            "id": "fwupd_topology_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Inventories firmware in SSDs, TPMs, modems, cameras, fingerprint readers, GPUs, docks, and other devices.",
+        "findings": [],
+        "question": "What firmware exists outside the motherboard BIOS?",
+        "security_notes": [],
+        "short_title": "Device firmware",
+        "slug": "device-firmware",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 1/5 applicable configured sources; 1 not applicable. Evidence states: {'not_collected': 5, 'collected': 1}. Finding types: {'informational': 0}.",
+        "title": "Device firmware and peripheral security"
+      },
+      {
+        "detailed_result": "0 actionable finding(s) and 0 security note(s) were generated from 1 available applicable evidence source(s). No section-specific action is required.",
+        "evidence": [
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_version",
+            "id": "fwupd_version",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": true,
+            "description": "fwupd_updates_json",
+            "id": "fwupd_updates_json",
+            "kind": "command",
+            "optional": false,
+            "status": "collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_devices_json",
+            "id": "fwupd_devices_json",
+            "kind": "command",
+            "optional": false,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "fwupd_remotes_json",
+            "id": "fwupd_remotes_json",
+            "kind": "command",
+            "optional": true,
+            "status": "not_collected"
+          },
+          {
+            "applicable": true,
+            "available": false,
+            "description": "esrt entries",
+            "id": "esrt_entries",
+            "kind": "artifact",
+            "optional": true,
+            "status": "not_collected"
+          }
+        ],
+        "explanation": "Checks locally available update metadata and currently applicable firmware releases.",
+        "findings": [],
+        "question": "Are official firmware updates available or failing?",
+        "security_notes": [],
+        "short_title": "Updates",
+        "slug": "updates",
+        "status": "good",
+        "summary": "No problem requiring action was identified from the available checks.",
+        "technical_result": "Evidence availability: 1/3 applicable configured sources; 2 not applicable. Evidence states: {'not_collected': 4, 'collected': 1}. Finding types: {'informational': 0}.",
+        "title": "Updates and known maintenance status"
+      }
+    ],
+    "findings": [
+      {
+        "category": "visibility",
+        "compromise_indicator": false,
+        "detailed": "",
+        "evidence": [
+          "Active swap topology could not be reconstructed"
+        ],
+        "evidence_ids": [
+          "proc_swaps",
+          "swapon_text",
+          "lsblk_json",
+          "mounts",
+          "artifact:swap_topology"
+        ],
+        "evidence_strength": "medium",
+        "finding_id": "swap-encryption-unknown",
+        "finding_type": "unknown",
+        "recommendation": "Review the active swap and storage topology in the raw evidence.",
+        "section": "storage-memory",
+        "severity": "low",
+        "simple": "The active swap inventory could not be mapped reliably to its backing storage.",
+        "summary": "The active swap inventory could not be mapped reliably to its backing storage.",
+        "technical": "Interpretation is based on the following collected evidence: Active swap topology could not be reconstructed.",
+        "title": "Swap protection could not be determined"
+      }
+    ],
+    "overall": {
+      "explanation": "No direct compromise indicator was found, but the available local evidence was insufficient for: Data exposure. Unknown is not treated as a security failure.",
+      "headline": "One or more security areas could not be assessed",
+      "status": "unknown"
+    },
+    "platform_profile": {
+      "confidence": "high",
+      "evidence": [
+        "/sys/firmware/efi present"
+      ],
+      "kind": "uefi"
+    },
+    "security_notes": [
+      {
+        "category": "visibility",
+        "compromise_indicator": false,
+        "detailed": "",
+        "evidence": [
+          "Active swap topology could not be reconstructed"
+        ],
+        "evidence_ids": [
+          "proc_swaps",
+          "swapon_text",
+          "lsblk_json",
+          "mounts",
+          "artifact:swap_topology"
+        ],
+        "evidence_strength": "medium",
+        "finding_id": "swap-encryption-unknown",
+        "finding_type": "unknown",
+        "recommendation": "Review the active swap and storage topology in the raw evidence.",
+        "section": "storage-memory",
+        "severity": "low",
+        "simple": "The active swap inventory could not be mapped reliably to its backing storage.",
+        "summary": "The active swap inventory could not be mapped reliably to its backing storage.",
+        "technical": "Interpretation is based on the following collected evidence: Active swap topology could not be reconstructed.",
+        "title": "Swap protection could not be determined"
+      }
+    ]
+  },
+  "system": {
+    "hardware": {
+      "bios_date": "01/01/2026",
+      "bios_vendor": "Example",
+      "bios_version": "1.0",
+      "board_name": "Board",
+      "board_vendor": "Example",
+      "cpu_model": "Example CPU",
+      "product_name": "Example Laptop",
+      "product_version": "1",
+      "system_vendor": "Example"
+    },
+    "hostname": "example-host",
+    "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "id_source": "machine-id",
+    "kernel": {
+      "architecture": "x86_64",
+      "installed_releases": [
+        "6.8.0-example-generic"
+      ],
+      "running_release": "6.8.0-example-generic",
+      "running_version": "#1 SMP"
+    },
+    "os": {
+      "id": "ubuntu",
+      "name": "Ubuntu",
+      "pretty_name": "Ubuntu 24.04 LTS",
+      "version": "24.04 LTS",
+      "version_codename": "noble",
+      "version_id": "24.04"
+    }
+  }
+}

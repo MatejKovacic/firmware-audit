@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Firmware Audit{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=app_version) }}">
+  <script defer src="{{ url_for('static', filename='status.js', v=app_version) }}"></script>
+  <script defer src="{{ url_for('static', filename='upload.js', v=app_version) }}"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="{{ url_for('index') }}">Firmware Audit <span>v{{ app_version }}</span></a>
+    <a href="{{ url_for('index') }}">Dashboard</a>
+  </div>
+</header>
+<main class="shell">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="notice notice-{{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+  {% if not auth_enabled %}
+    <div class="notice notice-warning">Authentication is not configured. The service must remain on a loopback listener unless an explicit unsafe override is configured.</div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="shell footer">Firmware Audit {{ app_version }} reports the current snapshot; it does not prove that a machine is clean.</footer>
+</body>
+</html>

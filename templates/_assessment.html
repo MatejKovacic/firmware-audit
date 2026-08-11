@@ -1,0 +1,66 @@
+{% set results = report.results %}
+{% set overall = results.overall %}
+{% set meta = report.report %}
+{% set coverage = overall.coverage or {} %}
+<div class="snapshot-summary">
+  <span class="status status-{{ overall.status }}">{{ overall.status|replace('_', ' ')|replace('-', ' ') }}</span>
+  {% if coverage.status %}<span class="coverage-badge coverage-{{ coverage.status }}">Coverage: {{ coverage.status }}</span>{% endif %}
+  <strong>{{ overall.headline }}</strong>
+  <span class="muted">{{ overall.explanation }}</span>
+  {% if results.platform_profile and results.platform_profile.kind == 'virtual-machine' %}<span class="muted"><strong>Scope:</strong> virtual-machine guest; physical host firmware is not assessed by this report.</span>{% endif %}
+  <span class="muted">Host <code>{{ report.system.hostname }}</code> · {{ report.system.os.pretty_name or report.system.os.name or 'unknown OS' }} · kernel {{ report.system.kernel.running_release }}</span>
+</div>
+
+<div class="table-wrap expanded-wrap">
+<table class="expanded-assessment action-table">
+  <thead><tr><th>Area</th><th>Status</th><th>Result</th><th>What it means</th><th>What to do</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr class="overall-row">
+      <td><strong>{% if meta.scope == 'partial' %}Selected areas{% else %}Overall{% endif %}</strong></td>
+      <td><span class="status status-{{ overall.status }}">{{ overall.status|replace('_', ' ')|replace('-', ' ') }}</span></td>
+      <td><strong>{{ overall.headline }}</strong>{% if coverage.status %}<br><span class="coverage-badge coverage-{{ coverage.status }}">Coverage: {{ coverage.status }}</span>{% endif %}</td>
+      <td>{{ overall.explanation }}{% if coverage.explanation %}<br><span class="muted">{{ coverage.explanation }}</span>{% endif %}</td>
+      <td>{% if results.findings %}Review the attention or investigate rows below.{% else %}No security action is currently required from the scanned areas below.{% endif %}</td>
+      <td><code>{{ meta.id }}</code><br>Scan started {{ meta.timing.started_at or meta.created_at }}{% if meta.timing.duration_ms is defined %}<br>Duration {{ format_duration_ms(meta.timing.duration_ms) }}{% endif %}<br>Snapshot consistency: {{ 'valid' if report.integrity_verification.valid else 'FAILED' }}</td>
+    </tr>
+
+    {% for area in results.areas %}
+      {% set action_items = area.findings %}
+      {% if action_items %}
+        {% for finding in action_items %}
+        <tr class="section-row section-{{ area.status }}">
+          {% if loop.first %}
+          <td rowspan="{{ action_items|length }}"><strong>{{ area.short_title }}</strong><br><span class="muted">{{ area.question }}</span></td>
+          <td rowspan="{{ action_items|length }}"><span class="status status-{{ area.status }}">{{ area.status|replace('_', ' ')|replace('-', ' ') }}</span></td>
+          {% endif %}
+          <td><strong>{{ finding.title }}</strong></td>
+          <td>{{ finding.simple }}{% if finding.detailed and finding.detailed != finding.simple %}<details class="technical-details"><summary>More context</summary><span class="muted">{{ finding.detailed }}</span></details>{% endif %}{% if finding.technical %}<details class="technical-details"><summary>Technical detail</summary><span class="technical">{{ finding.technical }}</span></details>{% endif %}</td>
+          <td>{{ finding.recommendation }}</td>
+          <td>{% if finding.evidence %}<ul class="compact-list evidence-list">{% for evidence in finding.evidence %}<li><code>{{ evidence }}</code></li>{% endfor %}</ul>{% endif %}{% if finding.evidence_ids %}<div class="muted">Sources: {% for source in finding.evidence_ids %}<code>{{ source }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr class="section-row section-{{ area.status }}">
+          <td><strong>{{ area.short_title }}</strong><br><span class="muted">{{ area.question }}</span></td>
+          <td><span class="status status-{{ area.status }}">{{ area.status|replace('_', ' ')|replace('-', ' ') }}</span></td>
+          <td><strong>{{ area.summary }}</strong></td>
+          <td>{{ area.explanation }}</td>
+          <td>{% if area.status == 'unknown' %}Review missing evidence if this check is required for your threat model.{% elif area.status == 'not_applicable' %}None.{% else %}No action required.{% endif %}</td>
+          <td><span class="muted"><a href="{{ url_for('raw_current') }}">Raw evidence</a></span></td>
+        </tr>
+      {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if results.security_notes %}
+<section class="security-notes" aria-labelledby="security-notes-heading">
+  <h2 id="security-notes-heading">Security notes</h2>
+  <p class="muted">These are residual risks, compatibility observations, or platform characteristics. They do not raise the security status by themselves.</p>
+  <div class="table-wrap"><table class="notes-table">
+    <thead><tr><th>Area</th><th>Note</th><th>What it means</th><th>Optional precaution</th></tr></thead>
+    <tbody>{% for note in results.security_notes %}<tr><td>{{ note.section|replace('-', ' ') }}</td><td><strong>{{ note.title }}</strong></td><td>{{ note.simple }}{% if note.detailed and note.detailed != note.simple %}<br><span class="muted">{{ note.detailed }}</span>{% endif %}</td><td>{{ note.recommendation }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}

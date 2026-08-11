@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Firmware Audit normal scan
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30min
+Unit=firmware-audit-daily.service
+
+[Install]
+WantedBy=timers.target
