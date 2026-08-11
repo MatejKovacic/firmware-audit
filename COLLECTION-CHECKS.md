@@ -4,9 +4,9 @@ This document defines the security questions Firmware Audit tries to answer. It 
 
 ## 1. Platform identity and applicability
 
-Establish hardware, firmware, boot model, virtualization state, processor architecture, and operating environment sufficiently to determine which later checks apply.
+Establish hardware, firmware, boot model, virtualization state, processor architecture, and operating environment sufficiently to determine which later checks apply. Keep independent applicability dimensions separate where possible: virtualization/trust boundary, firmware family, runtime boot interface, and boot trust model. Derive higher-level profiles from multiple positive signals rather than machine-model allow-lists or a single missing interface.
 
-Why: security controls must be interpreted according to the actual platform rather than assumed from a generic profile.
+Why: security controls must be interpreted according to the actual platform rather than assumed from a generic profile. Absence of UEFI runtime services alone, for example, does not prove that an unfamiliar machine is using conventional legacy BIOS; an alternative measured/verified boot model may be active.
 
 ## 2. Firmware identity and current evidence
 

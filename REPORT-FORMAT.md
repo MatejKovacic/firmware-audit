@@ -1,6 +1,6 @@
 # Firmware Audit report format v1
 
-Firmware Audit JSON report format **`firmware-audit-report` version `1`** is the boundary between scanners and viewers.
+Firmware Audit v0.12.0 introduces report format **`firmware-audit-report` version `1`** as the boundary between scanners and viewers.
 
 A viewer must not need scanner code. It should render `results`, use `system` and `report` as context, and treat `evidence` as optional technical detail.
 
@@ -32,6 +32,8 @@ Supporting commands/artifacts may be present in `evidence` because a requested a
 `results.overall` contains the security `status`, `headline`, and `explanation` for the scanned scope, plus a separate `coverage` object. Coverage is `complete`, `partial`, or `insufficient`; an Unknown area therefore does not automatically mask a meaningful Good, Attention, or Investigate security result.
 
 `results.areas` contains only requested areas and is ordered by the scanner's canonical area order. Each area includes generic viewer fields plus its actionable findings, security notes and evidence-source states.
+
+`results.platform_profile` is scanner-generated applicability context. Consumers should primarily use `kind` for compatibility, but may also receive additive dimensions such as `runtime_interface`, `firmware_family`, `boot_trust_model`, and explainable `signals`. These fields describe why platform-specific rules applied; they are not a machine-model identity database.
 
 Status values are:
 

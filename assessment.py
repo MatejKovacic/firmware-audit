@@ -190,7 +190,7 @@ def _default_evidence_ids(finding_id: str, section: str) -> list[str]:
         "oob-dash-enabled": ["kernel_journal", "artifact:firmware_attributes", "artifact:out_of_band_management"],
         "firmware-persistence-enabled": ["artifact:firmware_attributes", "artifact:out_of_band_management"],
         "memory-encryption-not-active": ["fwupd_security_json", "artifact:memory_protection"],
-        "swap-unencrypted": ["lsblk_json", "swapon_text", "swapon_json", "dmsetup_tree"],
+        "swap-unencrypted": ["lsblk_json", "swapon_text", "dmsetup_tree"],
         "swap-fwupd-overridden": ["fwupd_security_json", "lsblk_json", "dmsetup_tree"],
         "tpm-eventlog-replay-mismatch": ["tpm_pcrs", "tpm_eventlog", "artifact:tpm_eventlog_replay"],
         "boot-trust-inconsistent": ["secure_boot_state", "bootctl", "kernel_lockdown", "fwupd_security_json"],
@@ -280,6 +280,137 @@ def decode_taint(value: int) -> list[dict[str, Any]]:
     ]
 
 
+def _platform_boot_paths(report: dict[str, Any]) -> set[str]:
+    artifacts = report.get("artifacts", {}) or {}
+    paths: set[str] = set()
+    for item in artifacts.get("boot_file_hashes", []) or []:
+        if isinstance(item, dict):
+            path = str(item.get("path") or "").strip()
+            if path:
+                paths.add(path)
+    markers = artifacts.get("platform_boot_markers")
+    if isinstance(markers, dict):
+        for raw in markers.get("existing_paths", []) or []:
+            path = str(raw or "").strip()
+            if path:
+                paths.add(path)
+    return paths
+
+
+def _platform_signal_summary(report: dict[str, Any]) -> dict[str, Any]:
+    """Normalize platform evidence into independent, explainable dimensions.
+
+    Detection deliberately uses technology-level signals rather than machine-model
+    allow-lists. A profile is derived from virtualization, firmware-family,
+    boot-interface and boot-trust evidence so one missing product string does not
+    cascade into unrelated UEFI/legacy conclusions.
+    """
+    system = report.get("system") if isinstance(report.get("system"), dict) else {}
+    hardware = system.get("hardware") if isinstance(system.get("hardware"), dict) else {}
+    system_text = "\n".join(str(hardware.get(key) or "") for key in (
+        "system_vendor", "product_name", "product_version", "board_vendor", "board_name",
+        "bios_vendor", "bios_version", "bios_date",
+    ))
+    dmi_text = "\n".join([
+        system_text,
+        *(_combined(report, name) for name in ("dmidecode_bios", "dmidecode_full", "dmidecode_system")),
+    ]).lower()
+    tpm_text = _combined(report, "tpm_eventlog").lower()
+    boot_paths = _platform_boot_paths(report)
+    artifacts = report.get("artifacts", {}) or {}
+    virt = _stdout(report, "systemd_detect_virt").strip().lower()
+    if not virt:
+        virt = str(artifacts.get("virtualization_kind") or "").strip().lower()
+    uefi = bool(artifacts.get("uefi_mode"))
+
+    signals: list[dict[str, str]] = []
+
+    def signal(signal_id: str, dimension: str, evidence: str) -> None:
+        if signal_id not in {item["id"] for item in signals}:
+            signals.append({"id": signal_id, "dimension": dimension, "evidence": evidence})
+
+    coreboot_score = 0
+    if "coreboot" in dmi_text:
+        coreboot_score += 4
+        signal("dmi-coreboot", "firmware-family", "SMBIOS/DMI contains coreboot")
+    # Dasharo is a coreboot distribution/firmware-family marker. It is used as
+    # technology evidence, not as a machine-model allow-list.
+    if "dasharo" in dmi_text:
+        coreboot_score += 3
+        signal("dmi-dasharo", "firmware-family", "SMBIOS/DMI identifies Dasharo firmware")
+    textual_coreboot_measurements = (
+        ("cbfs:" in tpm_text and "fmap:" in tpm_text)
+        or ("cbfs" in tpm_text and "coreboot" in tpm_text)
+    )
+    encoded_coreboot_measurements = "43424653" in tpm_text and "464d4150" in tpm_text
+    if textual_coreboot_measurements or encoded_coreboot_measurements:
+        coreboot_score += 5
+        signal("tpm-cbfs-fmap", "firmware-family", "TPM event log contains CBFS/FMAP coreboot measurements")
+
+    heads_score = 0
+    if "heads" in dmi_text or "heads" in tpm_text:
+        heads_score += 6
+        signal("explicit-heads", "boot-trust", "DMI or measured-boot evidence explicitly identifies Heads")
+
+    # Heads installations expose a characteristic set of signed-kexec/HOTP
+    # state files. Require several independent artifact families so a single
+    # generic kexec file cannot classify a machine by itself.
+    heads_groups = 0
+    if any(path in boot_paths for path in {
+        "/boot/kexec_hashes.txt", "/boot/kexec_default_hashes.txt", "/boot/kexec_primhdl_hash.txt",
+    }):
+        heads_groups += 1
+        signal("heads-kexec-hashes", "boot-trust", "Heads-style kexec hash metadata is present")
+    if "/boot/kexec.sig" in boot_paths:
+        heads_groups += 1
+        signal("heads-kexec-signature", "boot-trust", "Signed kexec metadata is present")
+    if any(path in boot_paths for path in {"/boot/kexec_hotp_counter", "/boot/kexec_hotp_key"}):
+        heads_groups += 1
+        signal("heads-hotp-state", "boot-trust", "Heads-style HOTP state is present")
+    if any(path in boot_paths for path in {
+        "/boot/kexec_rollback.txt", "/boot/kexec_tree.txt", "/boot/kexec_default.1.txt",
+    }):
+        heads_groups += 1
+        signal("heads-kexec-policy", "boot-trust", "Heads-style kexec policy metadata is present")
+    if heads_groups >= 3:
+        heads_score += 5
+
+    legacy_loader = any(path.startswith("/boot/grub/i386-pc/") for path in boot_paths)
+    if legacy_loader:
+        signal("grub-pc-loader", "boot-interface", "GRUB i386-pc boot modules are present")
+
+    if virt and virt != "none":
+        signal("virtualization", "environment", f"systemd-detect-virt: {virt}")
+    signal(
+        "uefi-runtime" if uefi else "non-uefi-runtime",
+        "boot-interface",
+        "/sys/firmware/efi is present" if uefi else "UEFI runtime services are absent",
+    )
+
+    coreboot = coreboot_score >= 3 or heads_score >= 6
+    heads = heads_score >= 6 or (coreboot and heads_groups >= 3)
+    firmware_family = "coreboot" if coreboot else ("conventional-or-unknown" if uefi or legacy_loader else "unknown")
+    if heads:
+        boot_trust_model = "heads"
+    elif uefi:
+        boot_trust_model = "uefi"
+    elif legacy_loader and not coreboot:
+        boot_trust_model = "legacy"
+    else:
+        boot_trust_model = "unknown"
+
+    return {
+        "virtualization": virt or "unknown",
+        "uefi_runtime": uefi,
+        "firmware_family": firmware_family,
+        "boot_trust_model": boot_trust_model,
+        "coreboot_score": coreboot_score,
+        "heads_score": heads_score,
+        "legacy_loader_evidence": legacy_loader,
+        "signals": signals,
+    }
+
+
 def detect_platform_profile(report: dict[str, Any]) -> dict[str, Any]:
     stored = report.get("artifacts", {}).get("platform_profile")
     if isinstance(stored, dict) and stored.get("kind"):
@@ -287,56 +418,112 @@ def detect_platform_profile(report: dict[str, Any]) -> dict[str, Any]:
     if isinstance(stored, str) and stored:
         return {"kind": stored, "confidence": "high", "evidence": ["stored platform profile"]}
 
-    text = "\n".join(
-        _combined(report, name)
-        for name in ("dmidecode_bios", "dmidecode_full", "dmidecode_system", "tpm_eventlog")
-    ).lower()
-    uefi = bool(report.get("artifacts", {}).get("uefi_mode"))
-    virt = _stdout(report, "systemd_detect_virt").strip().lower()
+    summary = _platform_signal_summary(report)
+    virt = str(summary.get("virtualization") or "")
+    uefi = bool(summary.get("uefi_runtime"))
+    firmware_family = str(summary.get("firmware_family") or "unknown")
+    trust = str(summary.get("boot_trust_model") or "unknown")
+    signals = list(summary.get("signals") or [])
+    evidence = [
+        str(item.get("evidence"))
+        for item in signals
+        if isinstance(item, dict) and item.get("evidence")
+    ]
 
-    heads_tokens = [token for token in ("heads", "coreboot+heads", "dasharo (coreboot+heads)") if token in text]
-    coreboot_evidence = any(token in text for token in ("coreboot", "cbfs:", "fmap:"))
-    if heads_tokens and coreboot_evidence:
+    base = {
+        "runtime_interface": "uefi" if uefi else "non-uefi",
+        "firmware_family": firmware_family,
+        "boot_trust_model": trust,
+        "signals": signals,
+    }
+
+    # Virtualization is an orthogonal trust boundary and wins as the top-level
+    # profile. Guest firmware/trust dimensions are retained for guest checks.
+    if virt and virt not in {"none", "unknown"}:
         return {
-            "kind": "coreboot-heads",
-            "confidence": "high",
-            "evidence": ["DMI or TPM event log identifies Heads and coreboot"],
-        }
-    if coreboot_evidence:
-        return {
-            "kind": "coreboot",
-            "confidence": "high",
-            "evidence": ["DMI or TPM event log identifies coreboot/CBFS"],
-        }
-    if virt and virt != "none":
-        return {
+            **base,
             "kind": "virtual-machine",
             "boot_mode": "uefi" if uefi else "legacy-bios",
             "confidence": "high",
-            "evidence": [f"systemd-detect-virt: {virt}", "/sys/firmware/efi is present" if uefi else "UEFI runtime services are absent"],
+            "evidence": evidence or [f"systemd-detect-virt: {virt}"],
+        }
+    if trust == "heads":
+        return {
+            **base,
+            "kind": "coreboot-heads",
+            "confidence": "high",
+            "evidence": evidence or ["Independent coreboot/Heads evidence was detected"],
+        }
+    if firmware_family == "coreboot":
+        return {
+            **base,
+            "kind": "coreboot",
+            "confidence": "high" if int(summary.get("coreboot_score") or 0) >= 5 else "medium",
+            "evidence": evidence or ["Coreboot-family evidence was detected"],
         }
     if uefi:
-        return {"kind": "uefi", "confidence": "high", "evidence": ["/sys/firmware/efi is present"]}
-    return {"kind": "legacy-bios", "confidence": "medium", "evidence": ["UEFI runtime services are absent"]}
+        return {
+            **base,
+            "kind": "uefi",
+            "confidence": "high",
+            "evidence": evidence or ["/sys/firmware/efi is present"],
+        }
+    if bool(summary.get("legacy_loader_evidence")):
+        return {
+            **base,
+            "kind": "legacy-bios",
+            "confidence": "high",
+            "evidence": evidence,
+        }
+    return {
+        **base,
+        "kind": "non-uefi-unknown",
+        "confidence": "low",
+        "evidence": evidence or [
+            "UEFI runtime services are absent and no alternative boot model was positively identified"
+        ],
+    }
 
 
 def _is_heads(profile: dict[str, Any]) -> bool:
-    return profile.get("kind") == "coreboot-heads"
+    return profile.get("kind") == "coreboot-heads" or profile.get("boot_trust_model") == "heads"
+
+
+def _is_coreboot(profile: dict[str, Any]) -> bool:
+    return profile.get("firmware_family") == "coreboot" or profile.get("kind") in {"coreboot", "coreboot-heads"}
 
 
 def _is_vm(profile: dict[str, Any]) -> bool:
     return profile.get("kind") == "virtual-machine"
 
 
+def _is_uefi_runtime(profile: dict[str, Any]) -> bool:
+    if profile.get("runtime_interface"):
+        return profile.get("runtime_interface") == "uefi"
+    return profile.get("kind") == "uefi" or (_is_vm(profile) and profile.get("boot_mode") == "uefi")
+
+
+def _uses_conventional_uefi_boot(profile: dict[str, Any]) -> bool:
+    return _is_uefi_runtime(profile) and not _is_heads(profile)
+
+
+def _is_physical_conventional_uefi(profile: dict[str, Any]) -> bool:
+    return _uses_conventional_uefi_boot(profile) and not _is_vm(profile)
+
+
 def _is_non_uefi_vm(profile: dict[str, Any]) -> bool:
     """Return true for a virtual-machine guest without UEFI runtime services."""
-    return _is_vm(profile) and profile.get("boot_mode", "legacy-bios") != "uefi"
+    return _is_vm(profile) and not _is_uefi_runtime(profile)
+
+
+def _is_unclassified_non_uefi(profile: dict[str, Any]) -> bool:
+    return profile.get("kind") == "non-uefi-unknown" or (
+        _is_coreboot(profile) and not _is_heads(profile) and not _is_uefi_runtime(profile)
+    )
 
 
 def _command_state(report: dict[str, Any], name: str, profile: dict[str, Any]) -> str:
-    if _is_heads(profile) and name in UEFI_COMMANDS:
-        return "not_applicable"
-    if _is_non_uefi_vm(profile) and name in UEFI_COMMANDS:
+    if name in UEFI_COMMANDS and not _uses_conventional_uefi_boot(profile):
         return "not_applicable"
     if int(report.get("schema_version") or 0) < 5 and name in HOST_INTEGRITY_COMMANDS and name not in (report.get("commands", {}) or {}):
         return "not_applicable"
@@ -781,6 +968,19 @@ def _section_definition(slug: str, profile: dict[str, Any]) -> dict[str, Any]:
                 "a user token, HOTP/TOTP state, or Heads signing keys unless those values are explicitly collected."
             ),
         })
+    elif slug == "secure-boot" and _is_unclassified_non_uefi(profile):
+        definition.update({
+            "title": "Non-UEFI boot trust",
+            "short_title": "Boot trust",
+            "question": "What trust model protects this non-UEFI boot path?",
+            "simple": "The machine is not using UEFI runtime services, and the available evidence is insufficient to map the boot path to a known trust model.",
+            "detailed": (
+                "Firmware Audit does not assume that every non-UEFI platform is conventional legacy BIOS. Coreboot payloads, measured-boot designs, and other boot models can legitimately operate without EFI runtime services. The result remains Unknown until positive evidence identifies the trust model."
+            ),
+            "technical": (
+                "Platform classification separates virtualization, firmware family, runtime interface, and boot trust. UEFI-specific commands are marked not applicable when no conventional UEFI runtime/trust model is detected; the boot-trust section remains Unknown rather than being converted into a legacy-boot weakness from absence alone."
+            ),
+        })
     elif slug == "secure-boot" and _is_non_uefi_vm(profile):
         definition.update({
             "title": "Guest boot trust",
@@ -860,7 +1060,7 @@ def build_sections(report: dict[str, Any], finding_dicts: list[dict[str, Any]]) 
             if legacy_new_section:
                 state = "not_collected"
                 present = False
-            elif (_is_heads(profile) or _is_non_uefi_vm(profile)) and name in UEFI_ARTIFACTS:
+            elif name in UEFI_ARTIFACTS and not _uses_conventional_uefi_boot(profile):
                 state = "not_applicable"
                 present = False
             elif int(report.get("schema_version") or 0) < 5 and name in HOST_INTEGRITY_ARTIFACTS:
@@ -898,6 +1098,8 @@ def build_sections(report: dict[str, Any], finding_dicts: list[dict[str, Any]]) 
             status = "not_applicable"
         elif slug == "platform-security-processor" and _is_vm(profile):
             status = "not_applicable"
+        elif slug == "secure-boot" and _is_unclassified_non_uefi(profile):
+            status = "unknown"
         elif checks and not applicable_checks:
             status = "not_applicable"
         elif applicable_checks and available_count == 0:
@@ -1430,10 +1632,10 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
     if _is_heads(profile):
         _add_unique(findings, Finding(
             "heads-platform",
-            "Dasharo/coreboot with Heads detected",
+            "Coreboot with Heads detected",
             "info",
             "scope",
-            "This machine uses Heads rather than a conventional UEFI Secure Boot chain.",
+            "This machine uses a coreboot/Heads trust chain rather than conventional UEFI Secure Boot.",
             "Interpret UEFI checks as not applicable and evaluate the Heads measured/verified boot evidence instead.",
             list(profile.get("evidence") or ["Heads/coreboot identified"]),
             "high",
@@ -1464,7 +1666,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         ))
 
     sb = _combined(report, "secure_boot_state").lower()
-    if profile_kind == "uefi":
+    if _uses_conventional_uefi_boot(profile):
         if "secureboot enabled" in sb or "secure boot enabled" in sb:
             pass
         elif "secureboot disabled" in sb or "secure boot disabled" in sb:
@@ -1499,6 +1701,23 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
             "Confirm the intended boot mode and use UEFI Secure Boot where the platform supports it.",
             list(profile.get("evidence") or ["/sys/firmware/efi is absent"]),
             "medium",
+        ))
+    elif _is_unclassified_non_uefi(profile):
+        _add_unique(findings, Finding(
+            "boot-model-unclassified",
+            "Non-UEFI boot trust model could not be fully classified",
+            "info",
+            "visibility",
+            "UEFI runtime services are absent, but the available evidence does not justify treating the boot path as conventional legacy BIOS.",
+            "Collect a full scan and review the platform-profile signals before applying UEFI or legacy-boot recommendations.",
+            list(profile.get("evidence") or ["UEFI runtime services are absent"]),
+            "medium",
+            detailed=(
+                "Firmware Audit keeps the boot interface, firmware family, and trust model separate. A missing UEFI runtime interface is therefore not enough by itself to label an unfamiliar platform as legacy BIOS."
+            ),
+            section="secure-boot",
+            finding_type="unknown",
+            evidence_ids=["artifact:platform_profile", "dmidecode_bios", "tpm_eventlog", "artifact:boot_file_hashes"],
         ))
 
     attrs = _fwupd_attributes(report)
@@ -1597,6 +1816,9 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         if tool_state == "blocked":
             summary = "intelmetool was available but direct low-level hardware I/O was denied, so it could not establish the Intel ME/CSME state. This is a collection restriction, not evidence that the engine is absent or disabled."
             title = "Intel ME/CSME state is unresolved because intelmetool hardware access was blocked"
+        elif tool_state == "inconclusive" and not intel.get("hardware_present"):
+            summary = "No Intel HECI/MEI PCI function or Linux MEI host interface was observed, and intelmetool could not identify a usable ME PCI device. This is consistent with an absent, removed, firmware-hidden, or unsupported ME/CSME implementation, but the running OS cannot distinguish those states conclusively."
+            title = "No Intel ME/CSME host interface was observed; engine state remains unresolved"
         elif tool_state == "inconclusive":
             summary = "intelmetool ran but could not identify a usable ME PCI device on this platform, so its output is inconclusive for Intel ME/CSME state."
             title = "Intel ME/CSME state is unresolved because intelmetool was inconclusive"
@@ -1680,7 +1902,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
 
 
     # Cross-validate independent local Secure Boot sources on conventional UEFI.
-    if profile_kind == "uefi":
+    if _uses_conventional_uefi_boot(profile):
         trust_states = _secure_boot_sources(report, attrs)
         binary_states = {key: value for key, value in trust_states.items() if key in {"mokutil", "bootctl", "fwupd"} and value in {"enabled", "disabled"}}
         if len(set(binary_states.values())) > 1:
@@ -1808,7 +2030,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         "org.fwupd.hsi.IntelBootguard.Policy",
     }
     bootguard_failures = [attr for attr in failed_attrs if attr.get("appstream_id") in bootguard_policy_ids]
-    if bootguard_failures and profile_kind == "uefi":
+    if bootguard_failures and _is_physical_conventional_uefi(profile):
         _add_unique(findings, Finding(
             "intel-bootguard-policy",
             "Intel BootGuard protection policy is incomplete",
@@ -1948,7 +2170,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
                 evidence,
                 "high",
             ))
-        elif appstream_id == "org.fwupd.hsi.Uefi.BootserviceVars" and profile_kind == "uefi":
+        elif appstream_id == "org.fwupd.hsi.Uefi.BootserviceVars" and _uses_conventional_uefi_boot(profile):
             _add_unique(findings, Finding(
                 "uefi-vars-unlocked",
                 "UEFI boot-service variables are not locked",
@@ -1959,7 +2181,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
                 evidence,
                 "high",
             ))
-        elif appstream_id == "org.fwupd.hsi.Uefi.Pk" and profile_kind == "uefi":
+        elif appstream_id == "org.fwupd.hsi.Uefi.Pk" and _uses_conventional_uefi_boot(profile):
             _add_unique(findings, Finding(
                 "uefi-platform-key-invalid",
                 "UEFI Platform Key is invalid or missing",
@@ -1971,7 +2193,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
                 "high",
                 True,
             ))
-        elif appstream_id == "org.fwupd.hsi.Uefi.Db" and profile_kind == "uefi":
+        elif appstream_id == "org.fwupd.hsi.Uefi.Db" and _uses_conventional_uefi_boot(profile):
             _add_unique(findings, Finding(
                 "uefi-db-invalid",
                 "UEFI signature database is invalid",
@@ -2005,7 +2227,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         elif appstream_id == "org.fwupd.hsi.SuspendToIdle":
             # Suspend-to-idle being disabled does not by itself prove memory exposure.
             continue
-        elif appstream_id == "org.fwupd.hsi.Uefi.SecureBoot" and profile_kind == "uefi":
+        elif appstream_id == "org.fwupd.hsi.Uefi.SecureBoot" and _uses_conventional_uefi_boot(profile):
             if "secureboot disabled" not in sb and "secure boot disabled" not in sb:
                 _add_unique(findings, Finding(
                     "secure-boot-fwupd",
@@ -2018,7 +2240,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
                     "high",
                 ))
         elif appstream_id == "org.fwupd.hsi.Kernel.Lockdown":
-            if profile_kind == "uefi" and ("secureboot enabled" in sb or "secure boot enabled" in sb):
+            if _uses_conventional_uefi_boot(profile) and ("secureboot enabled" in sb or "secure boot enabled" in sb):
                 _add_unique(findings, Finding(
                     "kernel-lockdown-disabled",
                     "Kernel lockdown is disabled despite Secure Boot",
@@ -2067,7 +2289,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
             # Text-only legacy fallback for explicit failure markers.
             legacy_name = str(attr.get("name") or "").lower()
             legacy_result = str(attr.get("result") or "").lower()
-            if "uefi db" in legacy_name and "invalid" in legacy_result and profile_kind == "uefi":
+            if "uefi db" in legacy_name and "invalid" in legacy_result and _uses_conventional_uefi_boot(profile):
                 _add_unique(findings, Finding(
                     "uefi-db-invalid",
                     "UEFI signature database is invalid",
@@ -2121,7 +2343,7 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         ))
 
     lockdown = _stdout(report, "kernel_lockdown").lower()
-    if profile_kind == "uefi" and ("secureboot enabled" in sb or "secure boot enabled" in sb) and ("[none]" in lockdown or lockdown.strip() == "none"):
+    if _uses_conventional_uefi_boot(profile) and ("secureboot enabled" in sb or "secure boot enabled" in sb) and ("[none]" in lockdown or lockdown.strip() == "none"):
         _add_unique(findings, Finding(
             "kernel-lockdown-disabled",
             "Kernel lockdown is disabled despite Secure Boot",
@@ -2566,14 +2788,24 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
 
     tpm_devices = report.get("artifacts", {}).get("tpm_devices", [])
     if not tpm_devices and not _available(report, "tpm_properties", profile):
+        if _is_vm(profile):
+            tpm_title = "Virtual TPM was not exposed to the guest"
+            tpm_summary = "The guest has no visible /dev/tpm* device, so guest measured boot and TPM-backed attestation cannot be established from this scan."
+            tpm_recommendation = "If guest measured boot or attestation is required, configure a vTPM in the hypervisor and rerun the scan."
+            tpm_evidence = ["No guest /dev/tpm* device and no TPM capability output"]
+        else:
+            tpm_title = "TPM was not observed"
+            tpm_summary = "Measured boot and hardware-backed attestation may be unavailable, disabled, or simply not visible to the collector."
+            tpm_recommendation = "Check firmware TPM settings and confirm that tpm2-tools can access the local TPM device."
+            tpm_evidence = ["No /dev/tpm* device and no TPM capability output"]
         _add_unique(findings, Finding(
             "tpm-not-observed",
-            "TPM was not observed",
+            tpm_title,
             "low",
             "measured-boot",
-            "Measured boot and hardware-backed attestation may be unavailable, disabled, or simply not visible to the collector.",
-            "Check firmware TPM settings and install tpm2-tools.",
-            ["No /dev/tpm* device and no TPM capability output"],
+            tpm_summary,
+            tpm_recommendation,
+            tpm_evidence,
             "medium",
         ))
 

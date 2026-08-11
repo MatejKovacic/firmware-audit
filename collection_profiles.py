@@ -185,7 +185,14 @@ def build_conventional_uefi_collection(report: dict[str, Any]) -> dict[str, Any]
     """Build a collection manifest without evaluating the security result."""
     profile = (report.get("artifacts", {}) or {}).get("platform_profile", {}) or {}
     kind = str(profile.get("kind") if isinstance(profile, dict) else profile or "unknown")
-    applicable = kind == "uefi"
+    if isinstance(profile, dict) and profile.get("runtime_interface"):
+        applicable = (
+            profile.get("runtime_interface") == "uefi"
+            and profile.get("boot_trust_model") != "heads"
+            and kind != "virtual-machine"
+        )
+    else:
+        applicable = kind == "uefi"
     checks: list[dict[str, Any]] = []
     for definition in CONVENTIONAL_UEFI_CHECKS:
         states = {evidence_id: _evidence_state(report, evidence_id) for evidence_id in definition["evidence_ids"]}

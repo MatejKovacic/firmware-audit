@@ -34,6 +34,21 @@ class ConventionalUefiCollectionTests(unittest.TestCase):
         self.assertTrue(all("collection_state" in item for item in result["checks"]))
         self.assertFalse(any("result" in item or "severity" in item for item in result["checks"]))
 
+    def test_coreboot_with_uefi_runtime_can_use_uefi_collection_manifest(self) -> None:
+        report = {
+            "commands": {},
+            "artifacts": {
+                "platform_profile": {
+                    "kind": "coreboot",
+                    "runtime_interface": "uefi",
+                    "boot_trust_model": "uefi",
+                    "firmware_family": "coreboot",
+                }
+            },
+        }
+        result = build_conventional_uefi_collection(report)
+        self.assertTrue(result["applicable"])
+
     def test_heads_profile_is_not_applicable(self) -> None:
         report = {"commands": {}, "artifacts": {"platform_profile": {"kind": "coreboot-heads"}}}
         result = build_conventional_uefi_collection(report)
@@ -49,6 +64,13 @@ class ConventionalUefiCollectionTests(unittest.TestCase):
         forbidden = {"update", "install", "downgrade", "set-bios-setting", "security-fix", "security-undo"}
         for spec in collector.COMMANDS:
             self.assertFalse(forbidden.intersection(spec.argv), spec.name)
+
+    def test_swap_collection_does_not_request_unsupported_swapon_json(self) -> None:
+        argv = {spec.name: spec.argv for spec in collector.COMMANDS}
+        self.assertNotIn("swapon_json", argv)
+        self.assertEqual(argv["swapon_text"][:2], ("swapon", "--show"))
+        self.assertIn("swapon_text", SECTIONS["storage-memory"]["commands"])
+        self.assertNotIn("swapon_json", SECTIONS["storage-memory"]["commands"])
 
     def test_optional_evidence_is_assigned_to_sections(self) -> None:
         self.assertEqual(section_for_command("fwupd_bios_settings_json"), "firmware-protection")

@@ -270,7 +270,6 @@ COMMANDS = [
     CommandSpec("lsusb", ("lsusb",), description="USB device inventory", sensitive=True),
     CommandSpec("lsusb_tree", ("lsusb", "-t"), description="USB topology"),
     CommandSpec("lsblk_json", ("lsblk", "--json", "--output-all"), description="Block-device and encryption topology", sensitive=True),
-    CommandSpec("swapon_json", ("swapon", "--show", "--json", "--bytes"), description="Active swap devices in JSON when supported"),
     CommandSpec("swapon_text", ("swapon", "--show", "--noheadings", "--bytes", "--output", "NAME,TYPE,SIZE,USED,PRIO"), description="Portable active swap-device inventory"),
     CommandSpec("proc_swaps", ("cat", "/proc/swaps"), description="Kernel-reported active swap inventory"),
     CommandSpec("dmsetup_tree", ("dmsetup", "ls", "--tree"), description="Device-mapper dependency tree", sensitive=True),
@@ -608,6 +607,37 @@ def sha256_file(path: Path, max_bytes: int | None = None) -> tuple[str | None, s
         return digest.hexdigest(), None
     except (OSError, PermissionError) as exc:
         return None, str(exc)
+
+
+def collect_platform_boot_markers() -> dict[str, Any]:
+    """Collect cheap boot-model markers for every scan.
+
+    This intentionally records existence only, not file content. It lets partial
+    scans keep a stable platform/trust classification without forcing a full
+    /boot hash inventory or TPM event-log collection.
+    """
+    marker_paths = [
+        "/boot/kexec_hashes.txt",
+        "/boot/kexec_default_hashes.txt",
+        "/boot/kexec_primhdl_hash.txt",
+        "/boot/kexec.sig",
+        "/boot/kexec_hotp_counter",
+        "/boot/kexec_hotp_key",
+        "/boot/kexec_rollback.txt",
+        "/boot/kexec_tree.txt",
+        "/boot/kexec_default.1.txt",
+    ]
+    existing: list[str] = []
+    for raw in marker_paths:
+        try:
+            if Path(raw).is_file():
+                existing.append(raw)
+        except OSError:
+            continue
+    return {
+        "existing_paths": existing,
+        "scope": "existence-only boot-model markers; file contents are not read",
+    }
 
 
 def collect_file_hashes() -> list[dict[str, Any]]:
@@ -2605,6 +2635,8 @@ def collect(report_dir: Path, requested_areas: list[str] | None = None, *, profi
 
             artifacts: dict[str, Any] = {
                 "uefi_mode": Path("/sys/firmware/efi").is_dir(),
+                "virtualization_kind": virtualization_kind or "unknown",
+                "platform_boot_markers": collect_platform_boot_markers(),
             }
 
             def requested(*areas: str) -> bool:

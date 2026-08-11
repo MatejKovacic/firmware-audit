@@ -45,7 +45,7 @@ SECTIONS: dict[str, dict[str, Any]] = {
         ],
         "artifacts": ["firmware_runtime_hashes", "platform_profile"],
         "optional_commands": ["lscpu_json", "fwupd_hwids_json"],
-        "optional_artifacts": [],
+        "optional_artifacts": ["platform_boot_markers", "virtualization_kind"],
     },
     "firmware-baseline": {
         "title": "Current firmware and boot evidence",
@@ -232,7 +232,7 @@ SECTIONS: dict[str, dict[str, Any]] = {
             "Evidence includes the active swap inventory, block-device and mounted-filesystem topology, encrypted mappings, "
             "sleep and DMA attributes, and IOMMU state. Swap encryption is determined independently of fwupd."
         ),
-        "commands": ["lsblk_json", "swapon_json", "swapon_text", "proc_swaps", "dmsetup_tree", "mounts", "power_mem_sleep", "power_state", "fwupd_security_json", "fwupd_security_text"],
+        "commands": ["lsblk_json", "swapon_text", "proc_swaps", "dmsetup_tree", "mounts", "power_mem_sleep", "power_state", "fwupd_security_json", "fwupd_security_text"],
         "artifacts": ["swap_topology"],
         "optional_commands": ["iommu_kernel_log"],
         "optional_artifacts": ["iommu_groups", "thunderbolt_security"],

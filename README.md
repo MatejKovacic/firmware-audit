@@ -11,7 +11,10 @@ privileged scanner  ->  firmware-audit-report JSON  ->  local viewer
 ```
 
 The scanner owns all platform-specific knowledge: firmware, TPM, package verification, platform security processors, memory protection, and other evidence interpretation. The viewer knows only generic report concepts such as area, status, finding, note, timing, system identity, and raw evidence.
- Architecture-specific capability encodings are vendor-gated: for example, AMD memory-encryption CPUID/MSR semantics are only collected and interpreted on AMD processors, while Intel TME support is kept separate from evidence that TME is actually active. For Intel ME/CSME, the scanner also separates CSME/HECI hardware presence from Linux MEI host-interface availability and from a decoded engine state; a failed or hidden host interface is not treated as proof that ME/CSME is disabled.
+
+Platform classification is capability-based rather than a machine-model allow-list. The scanner keeps virtualization, firmware family, boot interface, and boot trust model as separate dimensions and derives the presentation profile from several independent signals. Examples include UEFI runtime availability, SMBIOS firmware-family strings, coreboot CBFS/FMAP measurements in the TPM event log, and characteristic Heads signed-kexec/HOTP boot artifacts. A tiny existence-only set of boot-model markers and the virtualization preflight are collected for every scan so partial-area scans do not silently fall back to a different platform profile merely because expensive `/boot` hashing or TPM event-log collection was not requested. A missing UEFI runtime interface by itself is not sufficient to label an unfamiliar bare-metal machine as legacy BIOS; if no positive trust-model evidence is available, the boot model remains Unknown instead of creating a legacy-boot weakness from absence alone.
+
+Architecture-specific capability encodings are vendor-gated: for example, AMD memory-encryption CPUID/MSR semantics are only collected and interpreted on AMD processors, while Intel TME support is kept separate from evidence that TME is actually active. For Intel ME/CSME, the scanner also separates CSME/HECI hardware presence from Linux MEI host-interface availability and from a decoded engine state; a failed or hidden host interface is not treated as proof that ME/CSME is disabled.
 
 A scan does not require Internet access. It uses local kernel/firmware interfaces, installed tools, local package metadata, and locally cached fwupd metadata. It does not refresh firmware metadata, search manufacturer sites, call vendor APIs, query online CVE/reputation services, or use AI services.
 
@@ -133,6 +136,8 @@ Firmware Audit detects common virtual-machine environments and keeps the guest/h
 
 Low-level Intel `intelmetool` probing is skipped inside detected VMs. If the guest kernel reports CPU vulnerability exposure, the recommendation points to the physical hypervisor's microcode/kernel mitigations and the VM CPU model in addition to the guest kernel.
 
+Virtualization is treated as an independent trust boundary. If a guest itself exposes a recognizable firmware/trust model, such as UEFI or coreboot/Heads, that guest boot model can still be assessed while physical firmware write protection, physical management controllers, and host platform security processors remain outside guest scope. A UEFI VM therefore has its guest Secure Boot state assessed normally; a non-UEFI VM reports UEFI Secure Boot as Not applicable.
+
 ## systemd sandboxing
 
 The scanner, viewer, and optional uploader have intentionally different sandbox profiles. The web viewer has no hardware-collection role and is strongly isolated: it runs unprivileged with private temporary files/devices/IPC, a read-only filesystem view, no Linux capabilities, restricted namespaces and address families, hidden process metadata, a process-only `/proc` view, and an allow-listed system-service syscall profile.
@@ -200,16 +205,16 @@ The installer does not run `apt upgrade`, `apt full-upgrade` or `dist-upgrade`. 
 
 ## Installation
 
-Download `firmware-audit-v0.12.8.zip` and its checksum file into the same directory. Verification is recommended:
+Download `firmware-audit-v0.12.9.zip` and its checksum file into the same directory. Verification is recommended:
 
 ```sh
-sha256sum -c firmware-audit-v0.12.8.zip.sha256
+sha256sum -c firmware-audit-v0.12.9.zip.sha256
 ```
 
 Extract and install:
 
 ```sh
-unzip firmware-audit-v0.12.8.zip
+unzip firmware-audit-v0.12.9.zip
 cd firmware-audit
 sudo ./install.sh
 ```
@@ -284,7 +289,7 @@ The public receiver is append-only: it validates the Firmware Audit format and d
 Extract the new release into a fresh directory and run its installer again:
 
 ```sh
-unzip firmware-audit-v0.12.8.zip
+unzip firmware-audit-v0.12.9.zip
 cd firmware-audit
 sudo ./install.sh
 ```

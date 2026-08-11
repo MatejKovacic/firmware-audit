@@ -216,6 +216,116 @@ class AssessmentTests(unittest.TestCase):
         secure_section = next(item for item in result["sections"] if item["slug"] == "secure-boot")
         self.assertEqual(secure_section["title"], "Heads boot-chain trust")
 
+    def test_dasharo_heads_is_detected_from_independent_signals_without_product_allowlist(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = False
+        report["commands"]["systemd_detect_virt"] = command("none")
+        report["commands"]["dmidecode_bios"] = command("Vendor: 3mdeb\nVersion: Dasharo release")
+        report["commands"]["tpm_eventlog"] = command(
+            'Event: "464d41503a20464d4150"\nEvent: "434246533a20626f6f74626c6f636b"'
+        )
+        report["artifacts"]["boot_file_hashes"] = [
+            {"path": "/boot/kexec_hashes.txt"},
+            {"path": "/boot/kexec.sig"},
+            {"path": "/boot/kexec_hotp_counter"},
+            {"path": "/boot/kexec_rollback.txt"},
+            {"path": "/boot/grub/i386-pc/linux.mod"},
+        ]
+        profile = detect_platform_profile(report)
+        self.assertEqual(profile["kind"], "coreboot-heads")
+        self.assertEqual(profile["firmware_family"], "coreboot")
+        self.assertEqual(profile["boot_trust_model"], "heads")
+        self.assertIn("tpm-cbfs-fmap", {item["id"] for item in profile["signals"]})
+        result = assess(report)
+        ids = {item["finding_id"] for item in result["findings"]}
+        self.assertNotIn("legacy-boot", ids)
+
+    def test_partial_scan_can_detect_heads_from_system_context_and_cheap_markers(self):
+        report = self.base_report()
+        report["system"]["hardware"] = {
+            "bios_vendor": "3mdeb",
+            "bios_version": "Dasharo release",
+            "product_name": "generic-laptop",
+        }
+        report["artifacts"]["uefi_mode"] = False
+        report["artifacts"]["virtualization_kind"] = "none"
+        report["artifacts"]["platform_boot_markers"] = {
+            "existing_paths": [
+                "/boot/kexec_hashes.txt",
+                "/boot/kexec.sig",
+                "/boot/kexec_hotp_counter",
+                "/boot/kexec_rollback.txt",
+            ]
+        }
+        report["artifacts"].pop("boot_file_hashes", None)
+        report["commands"].pop("tpm_eventlog", None)
+        report["commands"].pop("systemd_detect_virt", None)
+        profile = detect_platform_profile(report)
+        self.assertEqual(profile["kind"], "coreboot-heads")
+        self.assertEqual(profile["boot_trust_model"], "heads")
+        self.assertIn("heads-kexec-signature", {item["id"] for item in profile["signals"]})
+
+    def test_non_uefi_without_positive_legacy_evidence_remains_unclassified(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = False
+        report["commands"]["systemd_detect_virt"] = command("none")
+        report["commands"]["dmidecode_bios"] = command("Vendor: Example\nVersion: custom")
+        report["artifacts"]["boot_file_hashes"] = []
+        profile = detect_platform_profile(report)
+        self.assertEqual(profile["kind"], "non-uefi-unknown")
+        result = assess(report)
+        ids = {item["finding_id"] for item in result["findings"]}
+        self.assertIn("boot-model-unclassified", ids)
+        self.assertNotIn("legacy-boot", ids)
+        secure = next(item for item in result["sections"] if item["slug"] == "secure-boot")
+        self.assertEqual(secure["status"], "unknown")
+
+    def test_positive_grub_pc_evidence_can_classify_physical_legacy_boot(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = False
+        report["commands"]["systemd_detect_virt"] = command("none")
+        report["artifacts"]["boot_file_hashes"] = [{"path": "/boot/grub/i386-pc/linux.mod"}]
+        profile = detect_platform_profile(report)
+        self.assertEqual(profile["kind"], "legacy-bios")
+        ids = {item["finding_id"] for item in assess(report)["findings"]}
+        self.assertIn("legacy-boot", ids)
+
+    def test_virtualization_remains_top_level_boundary_even_with_heads_guest_signals(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = False
+        report["commands"]["systemd_detect_virt"] = command("kvm")
+        report["commands"]["dmidecode_bios"] = command("Version: coreboot Heads")
+        report["commands"]["tpm_eventlog"] = command('Event: "464d4150"\nEvent: "43424653"')
+        profile = detect_platform_profile(report)
+        self.assertEqual(profile["kind"], "virtual-machine")
+        self.assertEqual(profile["boot_trust_model"], "heads")
+        result = assess(report)
+        firmware = next(item for item in result["sections"] if item["slug"] == "firmware-protection")
+        self.assertEqual(firmware["status"], "not_applicable")
+        secure = next(item for item in result["sections"] if item["slug"] == "secure-boot")
+        self.assertEqual(secure["title"], "Heads boot-chain trust")
+
+    def test_uefi_vm_secure_boot_state_is_actually_assessed(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = True
+        report["commands"]["systemd_detect_virt"] = command("kvm")
+        report["commands"]["secure_boot_state"] = command("SecureBoot disabled")
+        result = assess(report)
+        ids = {item["finding_id"] for item in result["findings"]}
+        self.assertIn("secure-boot-disabled", ids)
+        secure = next(item for item in result["sections"] if item["slug"] == "secure-boot")
+        self.assertEqual(secure["status"], "attention")
+
+    def test_vm_missing_tpm_recommends_vtpm_not_package_install(self):
+        report = self.base_report()
+        report["artifacts"]["uefi_mode"] = False
+        report["artifacts"]["tpm_devices"] = []
+        report["commands"]["systemd_detect_virt"] = command("kvm")
+        report["commands"]["tpm_properties"] = command("", status="not_applicable")
+        finding = next(item for item in assess(report)["findings"] if item["finding_id"] == "tpm-not-observed")
+        self.assertIn("vtpm", finding["recommendation"].lower())
+        self.assertNotIn("install tpm2-tools", finding["recommendation"].lower())
+
     def test_unavailable_package_backend_makes_host_integrity_unknown(self):
         report = self.base_report()
         report["artifacts"]["package_verify_analysis"] = {"backend": "dpkg", "available": False, "records": []}
@@ -441,6 +551,32 @@ class AssessmentTests(unittest.TestCase):
         finding = next(item for item in result["findings"] if item["finding_id"] == "intel-me-state-unknown")
         self.assertIn("intelmetool was inconclusive", finding["title"])
         self.assertIn("Can't find ME PCI device", " ".join(finding["evidence"]))
+
+    def test_intelmetool_inconclusive_without_heci_describes_absent_removed_or_hidden_possibilities(self):
+        report = self.base_report()
+        report["schema_version"] = 16
+        report["commands"]["lscpu_json"] = command(json.dumps({"lscpu": [
+            {"field": "Vendor ID:", "data": "GenuineIntel"}
+        ]}))
+        report["artifacts"]["platform_security_processors"] = {
+            "intel_mei": {
+                "observable": False,
+                "hardware_present": False,
+                "state": "unobserved",
+                "intelmetool": {
+                    "state": "inconclusive",
+                    "reason": "me-pci-device-not-recognized",
+                    "available": True,
+                    "usable": False,
+                    "failure_evidence": ["Can't find ME PCI device"],
+                },
+            }
+        }
+        finding = next(item for item in assess(report)["findings"] if item["finding_id"] == "intel-me-state-unknown")
+        self.assertIn("no intel me/csme host interface", finding["title"].lower())
+        self.assertIn("removed", finding["summary"].lower())
+        self.assertIn("firmware-hidden", finding["summary"].lower())
+        self.assertNotIn("disabled", finding["title"].lower())
 
     def test_intelmetool_disabled_state_is_informational(self):
         report = self.base_report()
