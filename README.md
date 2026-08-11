@@ -2,6 +2,9 @@
 
 Firmware Audit is an offline-capable firmware and host-security scanner plus a separate local web viewer for Debian and Ubuntu systems. The scanner gathers local evidence, applies deterministic rules, and writes a self-contained JSON report. The viewer renders that report; it does not execute scans and does not re-assess evidence. An optional manual uploader can send the current JSON report to an administrator-configured HTTPS receiver, but no upload occurs automatically.
 
+<img src="scan1.png" width=300>
+
+<img src="scan2.png" width=300>
 
 ## Architecture
 
